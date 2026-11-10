@@ -95,10 +95,6 @@ class TVFrameApp : Application(), ImageLoaderFactory {
      * when available and mounted, or seamlessly falls back to internal TV flash cache.
      */
     override fun newImageLoader(): ImageLoader {
-        val prefs = runBlocking { preferencesRepository.userPreferencesFlow.first() }
-        val activeCacheDir: File = smartCacheManager.resolveActiveCacheDirectory()
-        val maxQuotaBytes = prefs.cacheQuotaMb.toLong() * 1024L * 1024L
-
         val okHttpClient = OkHttpClient.Builder()
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(25, TimeUnit.SECONDS)
@@ -121,6 +117,11 @@ class TVFrameApp : Application(), ImageLoaderFactory {
                     .build()
             }
             .diskCache {
+                // Coil builds the disk cache lazily on first use, which happens on its IO
+                // dispatcher. Reading prefs / resolving the USB cache dir here (instead of with
+                // runBlocking when the ImageLoader is created) keeps that work off the main thread.
+                val activeCacheDir: File = smartCacheManager.resolveActiveCacheDirectory()
+                val maxQuotaBytes = cacheQuotaMbBlocking().toLong() * 1024L * 1024L
                 DiskCache.Builder()
                     .directory(File(activeCacheDir, "coil_image_cache"))
                     .maxSizeBytes(maxQuotaBytes)
@@ -131,6 +132,9 @@ class TVFrameApp : Application(), ImageLoaderFactory {
             .crossfade(true)
             .build()
     }
+
+    private fun cacheQuotaMbBlocking(): Int =
+        runBlocking(Dispatchers.IO) { preferencesRepository.userPreferencesFlow.first().cacheQuotaMb }
 
     companion object {
         lateinit var instance: TVFrameApp
