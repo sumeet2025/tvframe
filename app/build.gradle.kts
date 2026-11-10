@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -6,13 +8,31 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
+// Release signing: point to a keystore.properties file that is NOT committed.
+// Lookup order: env TVFRAME_KEYSTORE_PROPERTIES, then `tvframe.keystoreProperties` in
+// local.properties, then ./keystore.properties at the repo root. If none exists, the
+// release build is produced unsigned (debug builds are unaffected).
+// keystore.properties keys: storeFile, storePassword, keyAlias, keyPassword
+val localProps = Properties().apply {
+    val f = rootProject.file("local.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
+}
+val keystorePropsFile: File? = listOfNotNull(
+    System.getenv("TVFRAME_KEYSTORE_PROPERTIES"),
+    localProps.getProperty("tvframe.keystoreProperties"),
+    rootProject.file("keystore.properties").path
+).map { file(it) }.firstOrNull { it.exists() }
+val keystoreProps = Properties().apply {
+    keystorePropsFile?.inputStream()?.use { load(it) }
+}
+
 android {
     namespace = "com.nostr.tvframe"
     compileSdk = 35
 
     defaultConfig {
         applicationId = "com.nostr.tvframe"
-        // Minimum SDK 30 (Android TV 11) with full optimization for Android TV 12 / API 31+
+        // Minimum SDK 30 (Android TV 11); works on any Android TV / Google TV device running Android 11+
         minSdk = 30
         targetSdk = 35
         versionCode = 2
@@ -23,8 +43,24 @@ android {
         }
     }
 
+    signingConfigs {
+        if (keystorePropsFile != null) {
+            create("release") {
+                storeFile = file(keystoreProps.getProperty("storeFile"))
+                storePassword = keystoreProps.getProperty("storePassword")
+                keyAlias = keystoreProps.getProperty("keyAlias")
+                keyPassword = keystoreProps.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
+            if (keystorePropsFile != null) {
+                signingConfig = signingConfigs.getByName("release")
+            } else {
+                logger.warn("TVFrame: no keystore.properties found, release APK will be unsigned.")
+            }
             isMinifyEnabled = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
