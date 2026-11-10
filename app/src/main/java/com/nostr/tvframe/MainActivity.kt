@@ -16,7 +16,7 @@ import com.nostr.tvframe.ui.theme.TVFrameTheme
 /**
  * Main Android TV Leanback Launcher Activity (`android.intent.category.LEANBACK_LAUNCHER`).
  * Integrates Android TV 12 Storage Access Framework (`OpenDocumentTree`), All-Files Access
- * permission intent for Android TV USB drives, and system Screensaver settings launcher.
+ * permission intent for USB drives, and system Screensaver settings launcher.
  */
 class MainActivity : ComponentActivity() {
 

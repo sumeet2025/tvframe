@@ -1,10 +1,6 @@
 package com.nostr.tvframe
 
 import android.app.Application
-import android.content.Intent
-import android.content.IntentFilter
-import android.hardware.usb.UsbManager
-import androidx.core.content.ContextCompat
 import coil.ImageLoader
 import coil.ImageLoaderFactory
 import coil.disk.DiskCache
@@ -19,7 +15,6 @@ import com.nostr.tvframe.data.storage.SmartCacheManager
 import com.nostr.tvframe.data.storage.SmbNetworkDataSource
 import com.nostr.tvframe.data.storage.UsbStorageDataSource
 import com.nostr.tvframe.data.worker.PrefetchWorker
-import com.nostr.tvframe.receiver.UsbHotPlugReceiver
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -59,8 +54,6 @@ class TVFrameApp : Application(), ImageLoaderFactory {
     lateinit var photoRepository: PhotoRepository
         private set
 
-    private var usbHotPlugReceiver: UsbHotPlugReceiver? = null
-
     override fun onCreate() {
         super.onCreate()
         instance = this
@@ -86,7 +79,8 @@ class TVFrameApp : Application(), ImageLoaderFactory {
             preferencesRepository = preferencesRepository
         )
 
-        registerUsbHotPlugMonitor()
+        // USB hot-plug events are delivered by the manifest-declared UsbHotPlugReceiver
+        // (registering it again at runtime caused every event to be handled twice).
         PrefetchWorker.schedulePeriodicPrefetch(this)
 
         // Verify mounted USB path on startup and prune expired cache entries
@@ -136,35 +130,6 @@ class TVFrameApp : Application(), ImageLoaderFactory {
             .diskCachePolicy(CachePolicy.ENABLED)
             .crossfade(true)
             .build()
-    }
-
-    private fun registerUsbHotPlugMonitor() {
-        val receiver = UsbHotPlugReceiver()
-        usbHotPlugReceiver = receiver
-        val mediaFilter = IntentFilter().apply {
-            addAction(Intent.ACTION_MEDIA_MOUNTED)
-            addAction(Intent.ACTION_MEDIA_UNMOUNTED)
-            addAction(Intent.ACTION_MEDIA_EJECT)
-            addAction(Intent.ACTION_MEDIA_BAD_REMOVAL)
-            addAction(Intent.ACTION_MEDIA_REMOVED)
-            addDataScheme("file")
-        }
-        val usbFilter = IntentFilter().apply {
-            addAction(UsbManager.ACTION_USB_DEVICE_ATTACHED)
-            addAction(UsbManager.ACTION_USB_DEVICE_DETACHED)
-        }
-        ContextCompat.registerReceiver(
-            this,
-            receiver,
-            mediaFilter,
-            ContextCompat.RECEIVER_EXPORTED
-        )
-        ContextCompat.registerReceiver(
-            this,
-            receiver,
-            usbFilter,
-            ContextCompat.RECEIVER_EXPORTED
-        )
     }
 
     companion object {

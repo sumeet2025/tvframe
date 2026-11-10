@@ -18,7 +18,7 @@ import kotlinx.coroutines.withContext
 import java.io.File
 
 /**
- * Represents a detected external USB mass storage volume on Android TV 12.
+ * Represents a detected external USB mass storage volume on Android TV / Google TV (Android 11+).
  */
 data class UsbVolumeInfo(
     val displayName: String,
@@ -30,7 +30,7 @@ data class UsbVolumeInfo(
 
 /**
  * Handles external USB mass storage discovery, scanning, cache directory resolution,
- * and hot-unplug fallback on Android TV 12 (API 31+).
+ * and hot-unplug fallback on Android TV / Google TV (Android 11+).
  *
  * Supports both:
  * 1. Direct mounted USB paths under `/storage/<UUID>` (via `StorageManager.storageVolumes`
@@ -50,7 +50,7 @@ class UsbStorageDataSource(
     private val supportedExtensions = setOf("jpg", "jpeg", "png", "webp", "bmp", "heic")
 
     /**
-     * Enumerates all removable USB volumes currently mounted on the Android TV.
+     * Enumerates all removable USB volumes currently mounted on the Android TV device.
      */
     fun detectMountedUsbVolumes(): List<UsbVolumeInfo> {
         val volumes = mutableListOf<UsbVolumeInfo>()

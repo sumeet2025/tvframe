@@ -72,7 +72,7 @@ import kotlin.random.Random
  * Shared Fullscreen Slideshow & Android TV DreamService Renderer.
  *
  * Defaults to [PhotoDisplayMode.FULLSCREEN_CROP] (`ContentScale.Crop`) so photos fill 100%
- * of the 16:9 Android TV screen edge-to-edge with zero side margins.
+ * of the 16:9 TV screen edge-to-edge with zero side margins.
  */
 @Composable
 fun SlideshowRenderer(

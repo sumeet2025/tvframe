@@ -85,7 +85,7 @@ enum class TvNavTab(val title: String) {
     FAVORITES("♥ Favorites"),
     STORAGE_SMB("💾 USB & SMB NAS"),
     OVERLAY_STUDIO("🎨 Overlay Studio"),
-    TV_SETUP("📺 Android TV TV Setup"),
+    TV_SETUP_GUIDE("📺 TV Setup"),
     ABOUT_NOSTR("⚡ About & Zaps")
 }
 
@@ -165,7 +165,7 @@ fun MainTvScreen(
                             .padding(horizontal = 8.dp, vertical = 3.dp)
                     )
                     Text(
-                        text = "Wikimedia • USB • SMB NAS • Android TV 12",
+                        text = "Wikimedia • USB • SMB NAS • Android TV & Google TV",
                         color = TvTextSecondary,
                         fontSize = 13.sp
                     )
@@ -301,7 +301,7 @@ fun MainTvScreen(
                         viewModel = viewModel
                     )
 
-                    TvNavTab.TV_SETUP -> TvSetupGuideTab(
+                    TvNavTab.TV_SETUP_GUIDE -> TvSetupGuideTab(
                         onOpenSystemDreamSettings = onOpenSystemDreamSettings,
                         onLaunchPreview = { isFullscreenSlideshowActive = true }
                     )
@@ -1125,7 +1125,7 @@ private fun OverlayStudioTab(
 }
 
 /**
- * Scrollable Setup & Remote Control Guide for Android TV 12.
+ * Scrollable Setup & Remote Control Guide for Android TV / Google TV devices.
  */
 @Composable
 private fun TvSetupGuideTab(
@@ -1146,16 +1146,17 @@ private fun TvSetupGuideTab(
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Text(
-                text = "Android TV 12 Screensaver Setup",
+                text = "Screensaver Setup (Android TV / Google TV)",
                 color = TvFocusAccent,
                 fontSize = 17.sp,
                 fontWeight = FontWeight.Bold
             )
             Text(
-                text = "1. Click 'Open Android TV Screensaver Settings' below (or go to Android TV Settings → System → Ambient mode / Screensaver).\n" +
+                text = "1. Click 'Open Screensaver Settings' below. If nothing opens, go to your TV's Settings → System (or Device Preferences) → Screen saver / Ambient mode. The exact menu name varies by TV brand.\n" +
                     "2. Select 'TVFrame Photo Screensaver' as your active screensaver.\n" +
                     "3. Set 'When to start' to 5, 10, or 15 minutes of inactivity.\n" +
-                    "4. Note for Android TV Retail/Ambient Mode: You can also bind TVFrame directly via ADB (`adb shell settings put secure screensaver_components com.nostr.tvframe/.service.PhotoDreamService`).",
+                    "4. Some Google TV devices hide the screensaver picker. In that case, set TVFrame from a computer via ADB:\n" +
+                    "   adb shell settings put secure screensaver_components com.nostr.tvframe/.service.PhotoDreamService",
                 color = TvTextPrimary,
                 fontSize = 13.sp,
                 lineHeight = 19.sp
@@ -1163,7 +1164,7 @@ private fun TvSetupGuideTab(
 
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 TvActionButton(
-                    label = "⚙ Open Android TV Screensaver Settings",
+                    label = "⚙ Open Screensaver Settings",
                     accentColor = TvFocusAccent,
                     onClick = onOpenSystemDreamSettings
                 )

@@ -26,7 +26,7 @@ import kotlinx.coroutines.launch
  *
  * Configured with `isInteractive = true` so users can press D-Pad Left/Right to skip photos
  * or D-Pad Center to mark Favorites while seeing the `"Click Back to wake up TV"` HUD prompt,
- * and press Back to call `finish()` and wake up the Android TV immediately.
+ * and press Back to call `finish()` and wake up the TV immediately.
  */
 class PhotoDreamService :
     DreamService(),
