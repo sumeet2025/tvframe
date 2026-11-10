@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">TVFrame</string>
+    <string name="dream_service_name">TVFrame Photo Screensaver</string>
+    <string name="wake_tv_hint">Click Back to wake up TV</string>
+    <string name="nostr_npub">npub19dfd7w8zxfdfywqmqxpt92wq6tx4p0mvfqv6yuyg0cv9d7duj4uskuccks</string>
+    <string name="nostr_primal_url">https://primal.net/s</string>
+    <string name="nostr_primal_display">primal.net/s</string>
+    <string name="nostr_lightning_address">s@primal.net</string>
+</resources>
