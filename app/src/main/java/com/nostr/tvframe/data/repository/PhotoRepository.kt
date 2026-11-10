@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import com.nostr.tvframe.data.local.PhotoDao
+import com.nostr.tvframe.data.local.PhotoEntity
 import com.nostr.tvframe.data.local.UserPreferencesRepository
 import com.nostr.tvframe.data.remote.WikimediaApiService
 import com.nostr.tvframe.data.remote.WikimediaClient
@@ -38,17 +39,30 @@ class PhotoRepository(
 ) {
 
     /**
-     * Reactive stream of active photos matching the user's enabled sources, resolution floor,
-     * and aspect ratio / orientation rules.
+     * Reactive stream of active photos for the in-app gallery and slideshow, matching the user's
+     * enabled sources, resolution floor, and aspect ratio / orientation rules.
+     * The "Screensaver: Favorites Only" setting does NOT apply here.
      */
-    val activePlaylistFlow: Flow<List<PhotoItem>> = combine(
+    val activePlaylistFlow: Flow<List<PhotoItem>> = playlistFlow(forScreensaver = false)
+
+    /**
+     * Playlist for the system screensaver (PhotoDreamService). Same as [activePlaylistFlow], except
+     * that "Screensaver: Favorites Only" restricts it to favorites (falling back to the normal
+     * playlist when there are no favorites yet, so the screensaver never goes blank).
+     */
+    val screensaverPlaylistFlow: Flow<List<PhotoItem>> = playlistFlow(forScreensaver = true)
+
+    private fun playlistFlow(forScreensaver: Boolean): Flow<List<PhotoItem>> = combine(
         photoDao.observeAllPhotos(),
         preferencesRepository.userPreferencesFlow
     ) { entities, prefs ->
-        val filtered = entities.filter { entity ->
-            if (prefs.favoritesOnlyInScreensaver) {
-                return@filter entity.isFavorite
+        if (forScreensaver && prefs.favoritesOnlyInScreensaver) {
+            val favorites = entities.filter { it.isFavorite }
+            if (favorites.isNotEmpty()) {
+                return@combine favorites.map { it.toDomain() }
             }
+        }
+        val filtered = entities.filter { entity ->
             val sourceMatches = when (entity.sourceType) {
                 PhotoSourceType.WIKIMEDIA.name -> prefs.enableWikimedia
                 PhotoSourceType.USB.name -> prefs.enableUsbSource
@@ -120,7 +134,7 @@ class PhotoRepository(
                 }
 
                 if (mapped.isNotEmpty()) {
-                    photoDao.upsertPhotos(mapped)
+                    upsertPreservingLocalState(mapped)
                     totalUpserted += mapped.size
                 }
             }
@@ -131,7 +145,7 @@ class PhotoRepository(
                     entity.copy(isFavorite = entity.id in existingFavoritesIds)
                 }
                 if (usbPhotos.isNotEmpty()) {
-                    photoDao.upsertPhotos(usbPhotos)
+                    upsertPreservingLocalState(usbPhotos)
                     totalUpserted += usbPhotos.size
                 }
             }
@@ -148,7 +162,7 @@ class PhotoRepository(
                     entity.copy(isFavorite = entity.id in existingFavoritesIds)
                 }
                 if (smbPhotos.isNotEmpty()) {
-                    photoDao.upsertPhotos(smbPhotos)
+                    upsertPreservingLocalState(smbPhotos)
                     totalUpserted += smbPhotos.size
                 }
             }
@@ -223,6 +237,31 @@ class PhotoRepository(
         } else {
             photoDao.unmarkAllFavorites()
         }
+    }
+
+    /**
+     * Inserts/updates refreshed rows without clobbering local state. A plain REPLACE upsert would
+     * reset createdAt/lastAccessed (breaking stable ordering and LRU), drop the cached file path,
+     * and could undo a favorite toggled while the refresh was running.
+     */
+    private suspend fun upsertPreservingLocalState(incoming: List<PhotoEntity>) {
+        if (incoming.isEmpty()) return
+        val existingById = incoming.map { it.id }
+            .distinct()
+            .chunked(500) // stay well under SQLite's bound-variable limit
+            .flatMap { photoDao.getPhotosByIds(it) }
+            .associateBy { it.id }
+        val merged = incoming.map { fresh ->
+            val old = existingById[fresh.id] ?: return@map fresh
+            fresh.copy(
+                isFavorite = old.isFavorite,
+                createdAtEpochMs = old.createdAtEpochMs,
+                lastAccessedEpochMs = old.lastAccessedEpochMs,
+                localCachedFilePath = fresh.localCachedFilePath ?: old.localCachedFilePath,
+                fileSizeBytes = if (fresh.fileSizeBytes > 0L) fresh.fileSizeBytes else old.fileSizeBytes
+            )
+        }
+        photoDao.upsertPhotos(merged)
     }
 
     suspend fun markPhotoViewed(photoId: String) = withContext(Dispatchers.IO) {

@@ -13,13 +13,17 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface PhotoDao {
 
-    @Query("SELECT * FROM photos ORDER BY isFavorite DESC, lastAccessedEpochMs DESC")
+    /**
+     * Ordered by stable keys only. Never order by lastAccessedEpochMs here: the slideshow touches
+     * that column on every slide, which used to reshuffle the list underneath it.
+     */
+    @Query("SELECT * FROM photos ORDER BY isFavorite DESC, createdAtEpochMs DESC, id ASC")
     fun observeAllPhotos(): Flow<List<PhotoEntity>>
 
     @Query("SELECT * FROM photos WHERE sourceType IN (:allowedSources) ORDER BY lastAccessedEpochMs DESC")
     fun observePhotosBySources(allowedSources: List<String>): Flow<List<PhotoEntity>>
 
-    @Query("SELECT * FROM photos WHERE isFavorite = 1 ORDER BY lastAccessedEpochMs DESC")
+    @Query("SELECT * FROM photos WHERE isFavorite = 1 ORDER BY createdAtEpochMs DESC, id ASC")
     fun observeFavoritePhotos(): Flow<List<PhotoEntity>>
 
     @Query("SELECT * FROM photos WHERE id = :photoId LIMIT 1")

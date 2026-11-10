@@ -60,6 +60,10 @@ class PhotoDreamService :
         val app = TVFrameApp.instance
 
         val composeView = ComposeView(this).apply {
+            // The dream window must give the Compose host view focus, otherwise D-pad keys
+            // never reach the slideshow's key handler.
+            isFocusable = true
+            isFocusableInTouchMode = true
             setViewTreeLifecycleOwner(this@PhotoDreamService)
             setViewTreeViewModelStoreOwner(this@PhotoDreamService)
             setViewTreeSavedStateRegistryOwner(this@PhotoDreamService)
@@ -67,7 +71,7 @@ class PhotoDreamService :
             setContent {
                 val prefs by app.preferencesRepository.userPreferencesFlow
                     .collectAsState(initial = UserPreferences())
-                val playlist by app.photoRepository.activePlaylistFlow
+                val playlist by app.photoRepository.screensaverPlaylistFlow
                     .collectAsState(initial = emptyList())
                 val usbBanner by app.usbStorageDataSource.statusBannerMessage
                     .collectAsState()
@@ -98,6 +102,7 @@ class PhotoDreamService :
         }
 
         setContentView(composeView)
+        composeView.requestFocus()
     }
 
     override fun onDreamingStarted() {
