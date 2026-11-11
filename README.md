@@ -29,7 +29,7 @@ Step-by-step install instructions (Downloader app, adb, or a USB stick), plus ho
    - **Ken Burns + Ambient Blur + OLED Protection**: Subtle slow pan/zoom motion, GPU-blurred pillarbox backdrop for non-16:9 photos, and automatic ±8px periodic pixel shifting to prevent OLED/LED static burn-in.
 
 3. **About Me & Nostr Zaps**
-   - Built-in **About & Zaps** tab showcasing Nostr profile on Primal (`primal.net/s` — `https://primal.net/s`), your full NPUB (`npub19dfd7w8zxfdfywqmqxpt92wq6tx4p0mvfqv6yuyg0cv9d7duj4uskuccks`), and Lightning Address (`s@primal.net`) with dual scannable ZXing QR codes.
+   - Built-in **About & Zaps** tab showcasing Nostr profile on Primal (`primal.net/s` — `https://primal.net/s`), full NPUB (`npub19dfd7w8zxfdfywqmqxpt92wq6tx4p0mvfqv6yuyg0cv9d7duj4uskuccks`), and Lightning Address (`s@primal.net`) with dual scannable ZXing QR codes.
 
 ## Building
 
