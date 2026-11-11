@@ -1,8 +1,14 @@
 # TVFrame — Android TV Photo Gallery & Screensaver (`DreamService`)
 
-Native Kotlin & Jetpack Compose app for **any Android TV / Google TV device running Android 11 (API 30) or newer**.
+I built TVFrame as a photo gallery and screensaver for **any Android TV or Google TV device running Android 11 (API 30) or newer**. It works on most smart TVs and streaming boxes — including Sony, TCL, Hisense, Philips, Chromecast with Google TV, NVIDIA Shield, and Google TV Streamer.
 
-> **Just want to install it?** See [INSTALL.md](INSTALL.md).
+## Download
+
+Get the latest APK from the [Releases](https://github.com/sumeet2025/tvframe/releases/latest) page:
+
+- [Download TVFrame v1.2.0 (APK)](https://github.com/sumeet2025/tvframe/releases/latest/download/TVFrame-v1.2.0.apk)
+
+Step-by-step install instructions (Downloader app, adb, or a USB stick), plus how to set TVFrame as your screensaver, are in [INSTALL.md](INSTALL.md). If you use the Downloader app on your TV, paste the APK link above directly.
 
 ## Key Features Included
 
@@ -60,7 +66,7 @@ If no file is found, `assembleRelease` still works but produces an **unsigned** 
 
 ## Publishing to Google Play (notes)
 
-The APK is fine for sharing with friends. Things that need work before a Play Store release:
+The APK is fine to share. Here's what I still need to work on before a Play Store release:
 
 - **`MANAGE_EXTERNAL_STORAGE` (All files access)**: Play only allows this permission for apps whose core purpose needs broad file access, and it requires a declaration form in Play Console. A photo viewer will very likely be refused. Plan to remove it and rely on the Storage Access Framework folder picker (`OpenDocumentTree`) plus `READ_MEDIA_IMAGES` for USB drives.
 - **Target API level**: the app targets API 35. Play currently requires new apps and updates to target API 36, except Android TV apps, which need API 34 or higher. Because `android.software.leanback` is declared `required="false"`, Play can also offer the app to phones, where the API 36 rule applies. Either bump `targetSdk`/`compileSdk` to 36 or keep it a TV-only listing.
