@@ -12,6 +12,7 @@ import com.nostr.tvframe.domain.model.PhotoDisplayMode
 import com.nostr.tvframe.domain.model.PhotoItem
 import com.nostr.tvframe.domain.model.QrColorTheme
 import com.nostr.tvframe.domain.model.ResolutionFloor
+import com.nostr.tvframe.domain.model.ScreensaverMode
 import com.nostr.tvframe.domain.model.SmbAuthMode
 import com.nostr.tvframe.domain.model.TextColorPreset
 import com.nostr.tvframe.domain.model.TextContrastMode
@@ -400,16 +401,19 @@ class MainViewModel : ViewModel() {
     fun updateSourceToggles(
         enableWikimedia: Boolean? = null,
         enableUsb: Boolean? = null,
-        enableSmb: Boolean? = null,
-        favoritesOnlyScreensaver: Boolean? = null
+        enableSmb: Boolean? = null
     ) {
         viewModelScope.launch {
-            prefsRepo.updateSources(enableWikimedia, enableUsb, enableSmb, favoritesOnlyScreensaver)
+            prefsRepo.updateSources(enableWikimedia, enableUsb, enableSmb)
             // Only a source being switched on has anything new to fetch.
             if (enableWikimedia == true || enableUsb == true || enableSmb == true) {
                 refreshSources(SyncTrigger.FILTER_CHANGE)
             }
         }
+    }
+
+    fun updateScreensaverMode(mode: ScreensaverMode) {
+        viewModelScope.launch { prefsRepo.updateScreensaverMode(mode) }
     }
 
     // USB Configuration

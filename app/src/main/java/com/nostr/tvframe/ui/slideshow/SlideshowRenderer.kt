@@ -130,6 +130,11 @@ fun SlideshowRenderer(
     usbStatusBanner: String? = null,
     /** Photo to open on (e.g. the one tapped in the Gallery); null starts at the first photo. */
     startPhotoId: String? = null,
+    /**
+     * Shuffle the play order (screensaver "Favorites (Random)"): a new shuffle each time this
+     * renderer starts, no repeats until every photo has been shown, then a fresh shuffle.
+     */
+    shuffle: Boolean = false,
     onToggleFavorite: (PhotoItem) -> Unit,
     onPhotoDisplayed: (PhotoItem) -> Unit,
     onExitOrWakeTv: () -> Unit
@@ -146,27 +151,44 @@ fun SlideshowRenderer(
 
     // ---- Stable play order, tracked by photo id ----
     val slideOrder = remember { SlideOrder() }
-    val order = remember(photos) { slideOrder.reconcile(photos.map { it.id }) }
+    val shuffleOrder = remember { ShuffleOrder() }
     val photosById = remember(photos) { photos.associateBy { it.id } }
     // Start on the requested photo if it's in the playlist. From there the show continues in
     // play order and wraps around, so every photo still gets shown.
     var selectedId by remember { mutableStateOf(startPhotoId?.takeIf { photosById.containsKey(it) }) }
+    val order = remember(photos, shuffle) {
+        val ids = photos.map { it.id }
+        val sequential = slideOrder.reconcile(ids) // always kept up to date, in case shuffle is turned off
+        if (shuffle) shuffleOrder.reconcile(ids, selectedId) else sequential
+    }
     val selected = selectedId
     val currentId: String? = when {
         order.isEmpty() -> null
         selected != null && photosById.containsKey(selected) -> selected
-        else -> slideOrder.successorOf(selected, order) // first start, or current photo was deleted
+        // First start, or the current photo was deleted
+        shuffle -> shuffleOrder.successorOf(selected, order)
+        else -> slideOrder.successorOf(selected, order)
     }
     val currentPhoto: PhotoItem? = currentId?.let { photosById[it] }
 
     val latestOrder by rememberUpdatedState(order)
     val latestCurrentId by rememberUpdatedState(currentId)
+    val latestShuffle by rememberUpdatedState(shuffle)
     val latestOnPhotoDisplayed by rememberUpdatedState(onPhotoDisplayed)
     val latestOnExit by rememberUpdatedState(onExitOrWakeTv)
 
     fun step(delta: Int) {
         val ids = latestOrder
         if (ids.isEmpty()) return
+        if (latestShuffle) {
+            // No repeats until every photo has been shown; then ShuffleOrder reshuffles.
+            selectedId = if (delta > 0) {
+                shuffleOrder.next(latestCurrentId, ids)
+            } else {
+                shuffleOrder.previous(latestCurrentId, ids)
+            }
+            return
+        }
         val pos = ids.indexOf(latestCurrentId).coerceAtLeast(0)
         selectedId = ids[Math.floorMod(pos + delta, ids.size)]
     }

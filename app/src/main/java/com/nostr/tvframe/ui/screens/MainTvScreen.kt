@@ -68,6 +68,7 @@ import com.nostr.tvframe.domain.model.PhotoItem
 import com.nostr.tvframe.domain.model.PhotoSourceType
 import com.nostr.tvframe.domain.model.QrColorTheme
 import com.nostr.tvframe.domain.model.ResolutionFloor
+import com.nostr.tvframe.domain.model.ScreensaverMode
 import com.nostr.tvframe.domain.model.SmbAuthMode
 import com.nostr.tvframe.domain.model.TextColorPreset
 import com.nostr.tvframe.domain.model.TextContrastMode
@@ -309,9 +310,7 @@ fun MainTvScreen(
                         onDeleteSelected = { deleteDisk -> viewModel.deleteSelectedFavorites(deleteDisk) },
                         onDeleteAll = { deleteDisk -> viewModel.deleteAllFavorites(deleteDisk) },
                         onDeleteSinglePhoto = { viewModel.deleteSinglePhoto(it.id) },
-                        onToggleFavoritesOnlyScreensaver = { enabled ->
-                            viewModel.updateSourceToggles(favoritesOnlyScreensaver = enabled)
-                        },
+                        onSelectScreensaverMode = { viewModel.updateScreensaverMode(it) },
                         onLaunchSlideshow = {
                             slideshowStartId = null
                             isFullscreenSlideshowActive = true
@@ -627,7 +626,7 @@ private fun FavoritesTab(
     onDeleteSelected: (Boolean) -> Unit,
     onDeleteAll: (Boolean) -> Unit,
     onDeleteSinglePhoto: (PhotoItem) -> Unit,
-    onToggleFavoritesOnlyScreensaver: (Boolean) -> Unit,
+    onSelectScreensaverMode: (ScreensaverMode) -> Unit,
     onLaunchSlideshow: () -> Unit
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
@@ -651,11 +650,21 @@ private fun FavoritesTab(
                 )
             }
 
-            TvActionButton(
-                label = if (prefs.favoritesOnlyInScreensaver) "✓ Screensaver: Favorites Only" else "Screensaver: All Sources",
-                accentColor = if (prefs.favoritesOnlyInScreensaver) TvFavoriteCoral else TvTextSecondary,
-                onClick = { onToggleFavoritesOnlyScreensaver(!prefs.favoritesOnlyInScreensaver) }
+            // Screensaver mode (single choice): All Sources / Favorites Only / Favorites (Random)
+            Text(
+                text = "Screensaver:",
+                color = TvTextSecondary,
+                fontSize = 12.sp,
+                modifier = Modifier.align(Alignment.CenterVertically)
             )
+            ScreensaverMode.entries.forEach { mode ->
+                val selected = prefs.screensaverMode == mode
+                TvActionButton(
+                    label = if (selected) "◉ ${mode.label}" else "○ ${mode.label}",
+                    accentColor = if (selected) TvFavoriteCoral else TvTextSecondary,
+                    onClick = { onSelectScreensaverMode(mode) }
+                )
+            }
 
             if (favorites.isNotEmpty()) {
                 TvActionButton(label = "Select All (${favorites.size})", onClick = onSelectAll)
