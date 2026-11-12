@@ -52,9 +52,13 @@ class SmartCacheManager(
     }
 
     /**
-     * Prunes the oldest-accessed non-favorited cached photos and files until disk usage
-     * drops below 85% of the user's configured storage quota.
-     * Favorited photos are strictly exempt from pruning.
+     * Frees space when the cache directory is above 85% of the user's quota by deleting the
+     * least-recently-viewed non-favorite photos that have a file TVFrame copied into its cache
+     * (network-share copies). Favorites are never touched.
+     *
+     * Under the quota nothing is deleted: the old version also trimmed the gallery to 300 photos,
+     * and when over quota it deleted gallery rows that had no file at all (Wikimedia photos live in
+     * Coil's own size-limited disk cache), which freed nothing and could empty the whole gallery.
      */
     suspend fun enforceStorageQuota() = withContext(Dispatchers.IO) {
         val prefs = preferencesRepository.userPreferencesFlow.first()
@@ -62,35 +66,29 @@ class SmartCacheManager(
         val targetThresholdBytes = (maxQuotaBytes * 0.85).toLong()
 
         val activeDir = resolveActiveCacheDirectory()
-        var currentBytes = computeDirectorySizeBytes(activeDir)
+        val currentBytes = computeDirectorySizeBytes(activeDir)
+        if (currentBytes <= targetThresholdBytes) return@withContext
 
-        val lruNonFavorites = photoDao.getNonFavoritePhotosOrderedByLru()
-        val idsToRemoveFromDb = mutableListOf<String>()
-
-        for (candidate in lruNonFavorites) {
-            if (currentBytes <= targetThresholdBytes && lruNonFavorites.size - idsToRemoveFromDb.size <= 300) {
-                break
+        val candidates = photoDao.getNonFavoritePhotosOrderedByLru()
+            .filterNot { it.isFavorite } // double-check the favorite safeguard
+            .map { entity ->
+                // Only files managed inside our cache directory, never original user USB photos
+                val managedFile = entity.localCachedFilePath
+                    ?.takeIf { it.contains("tvframe_") }
+                    ?.let { File(it) }
+                    ?.takeIf { it.exists() }
+                CachePruning.Candidate(entity.id, managedFile?.length())
             }
-            // Double check favorite safeguard
-            if (candidate.isFavorite) continue
+        val victims = CachePruning.pickVictims(candidates, currentBytes, targetThresholdBytes)
+        if (victims.isEmpty()) return@withContext
 
-            candidate.localCachedFilePath?.let { path ->
-                // Only delete files managed inside our cache directory, never original user USB photos
-                if (path.contains("tvframe_")) {
-                    val f = File(path)
-                    if (f.exists()) {
-                        val len = f.length()
-                        if (f.delete()) {
-                            currentBytes = (currentBytes - len).coerceAtLeast(0L)
-                        }
-                    }
-                }
-            }
-            idsToRemoveFromDb.add(candidate.id)
+        val byId = photoDao.getPhotosByIds(victims).associateBy { it.id }
+        val deleted = victims.filter { id ->
+            val path = byId[id]?.localCachedFilePath ?: return@filter false
+            runCatching { File(path).delete() }.getOrDefault(false)
         }
-
-        if (idsToRemoveFromDb.isNotEmpty()) {
-            photoDao.deletePhotosByIds(idsToRemoveFromDb)
+        if (deleted.isNotEmpty()) {
+            photoDao.deletePhotosByIds(deleted)
         }
     }
 

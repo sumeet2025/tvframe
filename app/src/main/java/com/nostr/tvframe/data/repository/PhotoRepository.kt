@@ -32,6 +32,8 @@ import coil.request.CachePolicy
 import coil.request.ImageRequest
 import coil.size.Precision
 import kotlinx.coroutines.CancellationException
+import androidx.room.RoomDatabase
+import androidx.room.withTransaction
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -48,6 +50,7 @@ import java.io.File
  */
 class PhotoRepository(
     private val context: Context,
+    private val database: RoomDatabase,
     private val photoDao: PhotoDao,
     private val seenHistoryDao: SeenHistoryDao,
     private val wikimediaApi: WikimediaApiService,
@@ -393,10 +396,12 @@ class PhotoRepository(
      * Toggles the Favorite status of a photo.
      */
     suspend fun toggleFavorite(photoId: String): Boolean = withContext(Dispatchers.IO) {
-        val current = photoDao.getPhotoById(photoId) ?: return@withContext false
-        val nextFavorite = !current.isFavorite
-        photoDao.updateFavoriteState(photoId, nextFavorite)
-        nextFavorite
+        database.withTransaction {
+            val current = photoDao.getPhotoById(photoId) ?: return@withTransaction false
+            val nextFavorite = !current.isFavorite
+            photoDao.updateFavoriteState(photoId, nextFavorite)
+            nextFavorite
+        }
     }
 
     /**
@@ -462,6 +467,12 @@ class PhotoRepository(
      */
     private suspend fun upsertPreservingLocalState(incoming: List<PhotoEntity>) {
         if (incoming.isEmpty()) return
+        // Read + write in one transaction so a favorite toggled (or a row deleted) in between
+        // can't be overwritten by the stale copy read here.
+        database.withTransaction { mergeAndUpsert(incoming) }
+    }
+
+    private suspend fun mergeAndUpsert(incoming: List<PhotoEntity>) {
         val existingById = incoming.map { it.id }
             .distinct()
             .chunked(500) // stay well under SQLite's bound-variable limit

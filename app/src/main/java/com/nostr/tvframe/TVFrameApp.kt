@@ -76,6 +76,7 @@ class TVFrameApp : Application(), ImageLoaderFactory {
         syncStatusTracker = SyncStatusTracker(this)
         photoRepository = PhotoRepository(
             context = this,
+            database = database,
             photoDao = database.photoDao(),
             seenHistoryDao = database.seenHistoryDao(),
             wikimediaApi = WikimediaClient.apiService,
