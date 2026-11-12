@@ -120,6 +120,8 @@ fun MainTvScreen(
 
     var currentTab by remember { mutableStateOf(TvNavTab.GALLERY) }
     var isFullscreenSlideshowActive by remember { mutableStateOf(false) }
+    // Photo the slideshow opens on: the one tapped in the Gallery, or null for "from the start".
+    var slideshowStartId by remember { mutableStateOf<String?>(null) }
 
     if (isFullscreenSlideshowActive) {
         SlideshowRenderer(
@@ -127,6 +129,7 @@ fun MainTvScreen(
             preferences = prefs,
             isDreamServiceMode = false,
             usbStatusBanner = usbBanner,
+            startPhotoId = slideshowStartId,
             onToggleFavorite = { viewModel.togglePhotoFavorite(it) },
             onPhotoDisplayed = { viewModel.markPhotoViewed(it) },
             onExitOrWakeTv = { isFullscreenSlideshowActive = false }
@@ -196,7 +199,10 @@ fun MainTvScreen(
                     TvActionButton(
                         label = "▶ Start Live Slideshow (${playlist.size})",
                         accentColor = TvFocusAccent,
-                        onClick = { isFullscreenSlideshowActive = true }
+                        onClick = {
+                            slideshowStartId = null
+                            isFullscreenSlideshowActive = true
+                        }
                     )
                 }
             }
@@ -287,7 +293,10 @@ fun MainTvScreen(
                         onDeleteAllNonFavorites = { viewModel.deleteAllNonFavoriteGalleryPhotos() },
                         seenCount = seenCount,
                         onResetSeenHistory = { viewModel.resetSeenHistory() },
-                        onLaunchSlideshow = { isFullscreenSlideshowActive = true }
+                        onLaunchSlideshowAt = { photoId ->
+                            slideshowStartId = photoId
+                            isFullscreenSlideshowActive = true
+                        }
                     )
 
                     TvNavTab.FAVORITES -> FavoritesTab(
@@ -303,7 +312,10 @@ fun MainTvScreen(
                         onToggleFavoritesOnlyScreensaver = { enabled ->
                             viewModel.updateSourceToggles(favoritesOnlyScreensaver = enabled)
                         },
-                        onLaunchSlideshow = { isFullscreenSlideshowActive = true }
+                        onLaunchSlideshow = {
+                            slideshowStartId = null
+                            isFullscreenSlideshowActive = true
+                        }
                     )
 
                     TvNavTab.STORAGE_SMB -> StorageAndSmbTab(
@@ -322,7 +334,10 @@ fun MainTvScreen(
 
                     TvNavTab.TV_SETUP_GUIDE -> TvSetupGuideTab(
                         onOpenSystemDreamSettings = onOpenSystemDreamSettings,
-                        onLaunchPreview = { isFullscreenSlideshowActive = true }
+                        onLaunchPreview = {
+                            slideshowStartId = null
+                            isFullscreenSlideshowActive = true
+                        }
                     )
 
                     TvNavTab.ABOUT_NOSTR -> AboutMeNostrZapsTab()
@@ -357,7 +372,8 @@ private fun GalleryAndFiltersTab(
     onDeleteAllNonFavorites: () -> Unit,
     seenCount: Int,
     onResetSeenHistory: () -> Unit,
-    onLaunchSlideshow: () -> Unit
+    /** Opens the slideshow on the given photo. */
+    onLaunchSlideshowAt: (String) -> Unit
 ) {
     var customSearchText by remember(prefs.customSearchQuery) { mutableStateOf(prefs.customSearchQuery) }
     var isSelectionMode by remember { mutableStateOf(false) }
@@ -587,7 +603,7 @@ private fun GalleryAndFiltersTab(
                             if (isSelectionMode) {
                                 onToggleGallerySelect(photo.id)
                             } else {
-                                onLaunchSlideshow()
+                                onLaunchSlideshowAt(photo.id)
                             }
                         },
                         onToggleFavorite = { onToggleFavorite(photo) },
