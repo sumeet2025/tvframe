@@ -6,7 +6,7 @@ I built TVFrame as a photo gallery and screensaver for **any Android TV or Googl
 
 Get the latest APK from the [Releases](https://github.com/sumeet2025/tvframe/releases/latest) page:
 
-- [Download the latest TVFrame APK](https://github.com/sumeet2025/tvframe/releases/latest/download/TVFrame.apk) (currently v1.3.0)
+- [Download the latest TVFrame APK](https://github.com/sumeet2025/tvframe/releases/latest/download/TVFrame.apk) (currently v1.3.1)
 
 This link always points to the newest release. What changed in each version is in the [CHANGELOG](CHANGELOG.md).
 
@@ -16,11 +16,11 @@ Step-by-step install instructions (Downloader app, adb, or a USB stick), plus ho
 
 1. **Multi-Source Photo Sourcing & Sync**
    - **Wikimedia Commons API**: Curated presets (*Pictures of the Day*, *Mountains*, *Rain & Storms*, *Birds*, *Lakes & Reflections*, *Landscapes*, *Night Sky & Space*, *Architecture*) plus custom free-text search. Pick one or more categories and a sync mixes them.
-   - **Clear, predictable Sync**: a status card shows what's happening ("Downloading 12 of 30"), the result, and the last and next sync times. You choose how many photos each sync brings (10–50) and the minimum resolution (720p / 1080p / 2K / 4K). TVFrame remembers what it has downloaded, so every sync brings **new** photos, even after "Clear Non-Favorites". "Reset seen history" starts over.
+   - **Clear, predictable Sync**: a status card shows what's happening ("Downloading 12 of 30"), the result, and the last and next sync times. You choose how many photos each sync brings (10–50) and the minimum resolution (720p / 1080p / 2K / 4K). TVFrame remembers what it has downloaded, so every sync brings **new** photos, even after "Clear Non-Favorites". Clearing never starts a download by itself; new photos come only from ⟳ Sync or the automatic sync about every 6 hours. "Reset seen history" starts over.
    - **Concise TV Metadata + QR Lookup**: Displays **only** the Photographer/Artist name (`📷`) and Location (`📍`) on screen for Wikimedia photos; full encyclopedic details and licensing are accessed by scanning the dynamic ZXing QR code.
    - **External USB Mass Storage (Hot-Plug Safe)**: Detects removable USB drives on Android TV / Google TV (`StorageManager` + SAF `OpenDocumentTree` + `MANAGE_EXTERNAL_STORAGE` support) to expand photo storage and Coil disk caching. `UsbHotPlugReceiver` listens for sudden USB detachment and seamlessly falls back to internal storage without crashing.
    - **SMBv2 / SMBv3 Local Network Share (`jcifs-ng`)**: Connects to NAS or PC shared folders over Wi-Fi/Ethernet using either **Guest / Anonymous** mode or **Username / Password / Domain** credentials encrypted via `EncryptedSharedPreferences`.
-   - **Smart LRU Cache & Favorites Engine**: Configurable storage quota (512 MB – 8 GB) with automatic Least-Recently-Used pruning (only when over quota) that **never** deletes Favorited photos. Includes multi-select and delete-all controls in the Favorites tab.
+   - **Smart LRU Cache & Favorites Engine**: Configurable storage quota (512 MB – 8 GB) with automatic Least-Recently-Used pruning (only when over quota) that **never** deletes Favorited photos. Includes multi-select and delete-all controls in the Favorites tab, plus the screensaver mode: **All Sources**, **Favorites Only**, or **Favorites (Random)** (shuffled, no repeats until every favorite has been shown).
 
 2. **Interactive `DreamService` Screensaver & D-Pad Controls**
    - Runs automatically when the TV goes idle (`PhotoDreamService`) or on-demand from the main app.
