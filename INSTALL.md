@@ -1,15 +1,16 @@
 # Installing TVFrame on your TV
 
 TVFrame is a photo gallery and screensaver for Android TV and Google TV.
-It isn't on the Play Store yet, so you install it from an APK file (for example `TVFrame-v1.2.0.apk`).
+It isn't on the Play Store yet, so you install it from an APK file (`TVFrame.apk`).
 
 ## What you need
 
 - A TV or streaming box running **Android TV or Google TV with Android 11 or newer**.
   This includes most smart TVs from Sony, TCL, Hisense, Philips and others, plus Chromecast with Google TV, NVIDIA Shield and Google TV Streamer.
   To check your version, go to **Settings → System → About → Android TV OS version** (menu names vary a little by brand).
-- The `TVFrame-vX.Y.Z.apk` file. The latest release is [TVFrame v1.2.0](https://github.com/sumeet2025/tvframe/releases/latest); direct APK link:
-  `https://github.com/sumeet2025/tvframe/releases/latest/download/TVFrame-v1.2.0.apk`
+- The APK file. The [latest release](https://github.com/sumeet2025/tvframe/releases/latest) is always available at this direct link:
+  `https://github.com/sumeet2025/tvframe/releases/latest/download/TVFrame.apk`
+  Each release also has a copy with the version in its name (for example `TVFrame-v1.3.0.apk`). Both files are identical.
 
 Pick **one** of the three methods below.
 
@@ -23,8 +24,8 @@ Pick **one** of the three methods below.
 2. Allow Downloader to install apps:
    **Settings → Apps → Security & restrictions → Unknown sources** (or **Install unknown apps**) → turn on **Downloader**.
    On some TVs this is under **Settings → Device Preferences → Security & restrictions**.
-3. Open Downloader and type in the APK link. The latest official file is:
-   `https://github.com/sumeet2025/tvframe/releases/latest/download/TVFrame-v1.2.0.apk`
+3. Open Downloader and type in the APK link. This always gets the latest version:
+   `https://github.com/sumeet2025/tvframe/releases/latest/download/TVFrame.apk`
 4. When the download finishes, choose **Install**, then **Open** or **Done**.
 
 ### Option 2: "Send Files to TV"
@@ -49,7 +50,7 @@ Works on Mac, Windows and Linux.
 5. In a terminal on the computer, run:
    ```bash
    adb connect <TV-IP>:5555
-   adb install -r TVFrame-v1.2.0.apk
+   adb install -r TVFrame.apk
    ```
    The first time, the TV shows **"Allow USB debugging?"**. Tick **Always allow from this computer** and choose **OK**, then run the install command again if it failed.
 
@@ -91,6 +92,10 @@ adb shell settings put secure screensaver_enabled 1
 To try it right away: `adb shell cmd dreams start-dreaming`
 
 **Remote controls during the screensaver:** Left/Right change photo, Center/Up adds to Favorites, Down shows or hides photo info, and **Back** wakes the TV.
+
+## Updating to a new version
+
+Install the new APK the same way you installed the first one: open the same link in Downloader, or run `adb install -r TVFrame.apk`. It installs over the old version and keeps your photos, favorites and settings. What's new in each version is in the [CHANGELOG](https://github.com/sumeet2025/tvframe/blob/main/CHANGELOG.md).
 
 ## Uninstalling
 
