@@ -202,6 +202,11 @@ class MainViewModel : ViewModel() {
         }
     }
 
+    /** Remembered until changed; doesn't start a sync by itself. */
+    fun updatePhotosPerSync(count: Int) {
+        viewModelScope.launch { prefsRepo.updatePhotosPerSync(count) }
+    }
+
     fun updatePhotoFilters(
         orientation: OrientationFilter? = null,
         resolutionFloor: ResolutionFloor? = null

@@ -62,6 +62,7 @@ import com.nostr.tvframe.data.sync.SyncStatus
 import com.nostr.tvframe.domain.model.FontFamilyOption
 import com.nostr.tvframe.domain.model.OrientationFilter
 import com.nostr.tvframe.domain.model.OverlayAnchor
+import com.nostr.tvframe.domain.model.PHOTOS_PER_SYNC_OPTIONS
 import com.nostr.tvframe.domain.model.PhotoDisplayMode
 import com.nostr.tvframe.domain.model.PhotoItem
 import com.nostr.tvframe.domain.model.PhotoSourceType
@@ -274,6 +275,7 @@ fun MainTvScreen(
                             viewModel.updatePhotoFilters(orientation, resFloor)
                         },
                         onSelectDisplayMode = { viewModel.updatePhotoDisplayMode(it) },
+                        onSelectPhotosPerSync = { viewModel.updatePhotosPerSync(it) },
                         onRefresh = { viewModel.refreshSources() },
                         onToggleFavorite = { viewModel.togglePhotoFavorite(it) },
                         onDeleteSinglePhoto = { viewModel.deleteSinglePhoto(it.id) },
@@ -341,6 +343,7 @@ private fun GalleryAndFiltersTab(
     onSubmitCustomSearch: (String) -> Unit,
     onSelectFilters: (OrientationFilter?, ResolutionFloor?) -> Unit,
     onSelectDisplayMode: (PhotoDisplayMode) -> Unit,
+    onSelectPhotosPerSync: (Int) -> Unit,
     onRefresh: () -> Unit,
     onToggleFavorite: (PhotoItem) -> Unit,
     onDeleteSinglePhoto: (PhotoItem) -> Unit,
@@ -421,7 +424,7 @@ private fun GalleryAndFiltersTab(
 
         Spacer(modifier = Modifier.height(6.dp))
 
-        // Row 2b: How photos fill the screen
+        // Row 2b: Photos per sync, and how photos fill the screen
         LazyRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             contentPadding = PaddingValues(horizontal = 4.dp),
@@ -429,7 +432,23 @@ private fun GalleryAndFiltersTab(
             modifier = Modifier.fillMaxWidth()
         ) {
             item {
-                Text(text = "Display:", color = TvTextSecondary, fontSize = 12.sp)
+                Text(text = "Photos per sync:", color = TvTextSecondary, fontSize = 12.sp)
+            }
+            items(PHOTOS_PER_SYNC_OPTIONS) { count ->
+                val selected = prefs.photosPerSync == count
+                TvActionButton(
+                    label = if (selected) "◉ $count" else "○ $count",
+                    accentColor = if (selected) TvFocusAccent else TvTextSecondary,
+                    onClick = { onSelectPhotosPerSync(count) }
+                )
+            }
+            item {
+                Text(
+                    text = "Display:",
+                    color = TvTextSecondary,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(start = 12.dp)
+                )
             }
             items(PhotoDisplayMode.entries) { mode ->
                 val selected = prefs.photoDisplayMode == mode
@@ -493,7 +512,7 @@ private fun GalleryAndFiltersTab(
 
 
             TvActionButton(
-                label = if (isRefreshing) "Syncing…" else "⟳ Sync New",
+                label = if (isRefreshing) "Syncing…" else "⟳ Sync ${prefs.photosPerSync} New",
                 accentColor = TvFocusAccent,
                 onClick = onRefresh
             )
@@ -535,7 +554,7 @@ private fun GalleryAndFiltersTab(
         if (playlist.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(
-                    text = "No photos in playlist for this filter. Click '⟳ Sync New' or pick a lower minimum resolution (e.g., 1080p instead of 4K).",
+                    text = "No photos in playlist for this filter. Click '⟳ Sync' or pick a lower minimum resolution (e.g., 1080p instead of 4K).",
                     color = TvTextSecondary,
                     fontSize = 15.sp
                 )
@@ -1586,7 +1605,7 @@ private fun SyncStatusCard(status: SyncStatus, scheduleLine: String) {
         SyncPhase.ERROR -> "⚠" to TvFavoriteCoral
     }
     val headline = when {
-        status.phase == SyncPhase.IDLE && status.message.isBlank() -> "Ready. Press ⟳ Sync New to download photos."
+        status.phase == SyncPhase.IDLE && status.message.isBlank() -> "Ready. Press ⟳ Sync to download photos."
         status.isRunning && status.queryLabel.isNotBlank() -> "${status.message}  ·  ${status.queryLabel}"
         else -> status.message
     }
