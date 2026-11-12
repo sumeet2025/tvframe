@@ -14,6 +14,7 @@ import com.nostr.tvframe.data.repository.PhotoRepository
 import com.nostr.tvframe.data.storage.SmartCacheManager
 import com.nostr.tvframe.data.storage.SmbNetworkDataSource
 import com.nostr.tvframe.data.storage.UsbStorageDataSource
+import com.nostr.tvframe.data.sync.SyncStatusTracker
 import com.nostr.tvframe.data.worker.PrefetchWorker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -54,6 +55,9 @@ class TVFrameApp : Application(), ImageLoaderFactory {
     lateinit var photoRepository: PhotoRepository
         private set
 
+    lateinit var syncStatusTracker: SyncStatusTracker
+        private set
+
     override fun onCreate() {
         super.onCreate()
         instance = this
@@ -69,6 +73,7 @@ class TVFrameApp : Application(), ImageLoaderFactory {
             preferencesRepository = preferencesRepository,
             usbStorageDataSource = usbStorageDataSource
         )
+        syncStatusTracker = SyncStatusTracker(this)
         photoRepository = PhotoRepository(
             context = this,
             photoDao = database.photoDao(),
@@ -76,7 +81,8 @@ class TVFrameApp : Application(), ImageLoaderFactory {
             usbStorageDataSource = usbStorageDataSource,
             smbNetworkDataSource = smbNetworkDataSource,
             smartCacheManager = smartCacheManager,
-            preferencesRepository = preferencesRepository
+            preferencesRepository = preferencesRepository,
+            syncStatusTracker = syncStatusTracker
         )
 
         // USB hot-plug events are delivered by the manifest-declared UsbHotPlugReceiver

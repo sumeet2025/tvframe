@@ -16,7 +16,19 @@ import com.nostr.tvframe.domain.model.PhotoItem
 import com.nostr.tvframe.domain.model.PhotoSourceType
 import com.nostr.tvframe.domain.model.UserPreferences
 import com.nostr.tvframe.domain.model.WikimediaCategoryFilter
+import com.nostr.tvframe.data.sync.SyncPhase
+import com.nostr.tvframe.data.sync.SyncReport
+import com.nostr.tvframe.data.sync.SyncStatusTracker
+import com.nostr.tvframe.data.sync.SyncTrigger
+import com.nostr.tvframe.util.DisplaySize
+import coil.imageLoader
+import coil.request.CachePolicy
+import coil.request.ImageRequest
+import coil.size.Precision
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
@@ -35,8 +47,11 @@ class PhotoRepository(
     private val usbStorageDataSource: UsbStorageDataSource,
     private val smbNetworkDataSource: SmbNetworkDataSource,
     private val smartCacheManager: SmartCacheManager,
-    private val preferencesRepository: UserPreferencesRepository
+    private val preferencesRepository: UserPreferencesRepository,
+    private val syncStatusTracker: SyncStatusTracker
 ) {
+
+    private val syncMutex = Mutex()
 
     /**
      * Reactive stream of active photos for the in-app gallery and slideshow, matching the user's
@@ -100,16 +115,47 @@ class PhotoRepository(
         .map { list -> list.map { it.toDomain() } }
 
     /**
-     * Refreshes all currently enabled sources (Wikimedia Commons, USB Storage, SMB NAS).
+     * Refreshes all currently enabled sources (Wikimedia Commons, USB Storage, SMB NAS) and reports
+     * progress through [syncStatusTracker]. New Wikimedia photos are downloaded into the image
+     * disk cache one by one ("Downloading X of N") and appear in the gallery as each one lands.
+     * Runs are serialized: a second caller waits for the running sync to finish.
      */
-    suspend fun refreshEnabledSources(): Result<Int> = withContext(Dispatchers.IO) {
-        runCatching {
-            val prefs = preferencesRepository.userPreferencesFlow.first()
-            val existingFavoritesIds = photoDao.getAllFavoritesSync().map { it.id }.toSet()
-            var totalUpserted = 0
+    suspend fun refreshEnabledSources(trigger: SyncTrigger = SyncTrigger.MANUAL): Result<SyncReport> =
+        withContext(Dispatchers.IO) {
+            syncMutex.withLock {
+                val prefs = preferencesRepository.userPreferencesFlow.first()
+                val queryLabel = describeActiveQuery(prefs)
+                syncStatusTracker.start(trigger, queryLabel)
+                val result = runCatching { runSync(prefs, queryLabel) }
+                result.fold(
+                    onSuccess = { report ->
+                        syncStatusTracker.finish(trigger, report.newPhotos, report.message, isError = false)
+                    },
+                    onFailure = { err ->
+                        if (err is CancellationException) {
+                            syncStatusTracker.update { it.copy(phase = SyncPhase.IDLE, message = "Sync cancelled.") }
+                            throw err
+                        }
+                        val msg = "Sync failed: ${err.localizedMessage ?: err.javaClass.simpleName}. " +
+                            "Showing photos already on this TV."
+                        syncStatusTracker.finish(trigger, 0, msg, isError = true)
+                    }
+                )
+                result
+            }
+        }
 
-            // 1. Fetch Wikimedia Commons if enabled and network is available
-            if (prefs.enableWikimedia && isNetworkAvailable()) {
+    private suspend fun runSync(prefs: UserPreferences, queryLabel: String): SyncReport {
+        val existingFavoritesIds = photoDao.getAllFavoritesSync().map { it.id }.toSet()
+        var newPhotos = 0
+        var wikimediaMatched = 0
+        var wikimediaOffline = false
+
+        // 1. Wikimedia Commons
+        if (prefs.enableWikimedia) {
+            if (!isNetworkAvailable()) {
+                wikimediaOffline = true
+            } else {
                 val query = buildEffectiveWikimediaQuery(prefs)
                 val response = wikimediaApi.searchCommonsImages(
                     searchQuery = query,
@@ -119,59 +165,126 @@ class PhotoRepository(
                 val pages = response.query?.pages?.values.orEmpty()
                 val mapped = pages.mapNotNull { page ->
                     WikimediaClient.mapDtoToEntity(page, prefs.activeCategory.name)
-                }.filter { entity ->
-                    val meetsRes = entity.width >= prefs.resolutionFloor.minWidthPx
-                    val meetsAspect = when (prefs.orientationFilter) {
-                        OrientationFilter.WIDESCREEN_16_9 ->
-                            entity.height > 0 && (entity.width.toFloat() / entity.height.toFloat()) >= 1.50f
-                        OrientationFilter.LANDSCAPE_ONLY -> entity.width >= entity.height
-                        OrientationFilter.PORTRAIT_ONLY -> entity.height > entity.width
-                        OrientationFilter.ALL -> true
-                    }
-                    meetsRes && meetsAspect
-                }.map { entity ->
-                    entity.copy(isFavorite = entity.id in existingFavoritesIds)
-                }
+                }.filter { entity -> matchesResolutionAndOrientation(entity, prefs) }
+                    .map { entity -> entity.copy(isFavorite = entity.id in existingFavoritesIds) }
+                wikimediaMatched = mapped.size
 
-                if (mapped.isNotEmpty()) {
-                    upsertPreservingLocalState(mapped)
-                    totalUpserted += mapped.size
-                }
+                val alreadyStored = existingIds(mapped.map { it.id })
+                val (known, fresh) = mapped.partition { it.id in alreadyStored }
+                // Refresh metadata for photos we already have (cheap, no download).
+                upsertPreservingLocalState(known)
+                newPhotos += downloadAndStore(fresh)
             }
+        }
 
-            // 2. Scan External USB Drive if enabled and mounted
-            if (prefs.enableUsbSource && usbStorageDataSource.verifyUsbMountOrFallback()) {
+        // 2. USB drive
+        if (prefs.enableUsbSource) {
+            syncStatusTracker.update {
+                it.copy(phase = SyncPhase.SCANNING_LOCAL, message = "Scanning USB drive…")
+            }
+            if (usbStorageDataSource.verifyUsbMountOrFallback()) {
                 val usbPhotos = usbStorageDataSource.scanUsbPhotos().map { entity ->
                     entity.copy(isFavorite = entity.id in existingFavoritesIds)
                 }
-                if (usbPhotos.isNotEmpty()) {
-                    upsertPreservingLocalState(usbPhotos)
-                    totalUpserted += usbPhotos.size
-                }
+                val before = existingIds(usbPhotos.map { it.id })
+                upsertPreservingLocalState(usbPhotos)
+                newPhotos += usbPhotos.count { it.id !in before }
             }
-
-            // 3. Sync SMB / NAS Network Share if enabled
-            if (prefs.enableSmbSource && prefs.smbHostIp.isNotBlank() && isNetworkAvailable()) {
-                val activeCacheDir = smartCacheManager.resolveActiveCacheDirectory()
-                val smbPhotos = smbNetworkDataSource.syncSmbSharePhotos(
-                    hostIp = prefs.smbHostIp,
-                    shareAndPath = prefs.smbShareAndPath,
-                    authMode = prefs.smbAuthMode,
-                    targetCacheDir = activeCacheDir
-                ).map { entity ->
-                    entity.copy(isFavorite = entity.id in existingFavoritesIds)
-                }
-                if (smbPhotos.isNotEmpty()) {
-                    upsertPreservingLocalState(smbPhotos)
-                    totalUpserted += smbPhotos.size
-                }
-            }
-
-            // 4. Enforce LRU storage quota while protecting Favorites
-            smartCacheManager.enforceStorageQuota()
-            totalUpserted
         }
+
+        // 3. SMB / NAS share
+        if (prefs.enableSmbSource && prefs.smbHostIp.isNotBlank() && isNetworkAvailable()) {
+            syncStatusTracker.update {
+                it.copy(phase = SyncPhase.SCANNING_LOCAL, message = "Copying photos from the network share…")
+            }
+            val activeCacheDir = smartCacheManager.resolveActiveCacheDirectory()
+            val smbPhotos = smbNetworkDataSource.syncSmbSharePhotos(
+                hostIp = prefs.smbHostIp,
+                shareAndPath = prefs.smbShareAndPath,
+                authMode = prefs.smbAuthMode,
+                targetCacheDir = activeCacheDir
+            ).map { entity ->
+                entity.copy(isFavorite = entity.id in existingFavoritesIds)
+            }
+            val before = existingIds(smbPhotos.map { it.id })
+            upsertPreservingLocalState(smbPhotos)
+            newPhotos += smbPhotos.count { it.id !in before }
+        }
+
+        // 4. Enforce LRU storage quota while protecting Favorites
+        smartCacheManager.enforceStorageQuota()
+
+        val message = when {
+            !prefs.enableWikimedia && !prefs.enableUsbSource && !prefs.enableSmbSource ->
+                "Nothing to sync: every photo source is turned off."
+            wikimediaOffline && newPhotos == 0 ->
+                "No internet connection. Showing photos already on this TV."
+            newPhotos > 0 ->
+                "Added $newPhotos new photo${if (newPhotos == 1) "" else "s"}."
+            prefs.enableWikimedia && wikimediaMatched == 0 ->
+                "No photos matched $queryLabel at ${prefs.resolutionFloor.label}, " +
+                    "${prefs.orientationFilter.label}. Try another category or a lower resolution."
+            else ->
+                "No new photos. All $wikimediaMatched matches are already in your gallery."
+        }
+        return SyncReport(newPhotos = newPhotos, queryLabel = queryLabel, message = message)
     }
+
+    /**
+     * Downloads each new photo into Coil's disk cache (so it shows instantly and works offline)
+     * and inserts it into the gallery right away, updating "Downloading X of N" as it goes.
+     * A photo whose download fails is still added; it will load on demand later.
+     */
+    private suspend fun downloadAndStore(fresh: List<PhotoEntity>): Int {
+        if (fresh.isEmpty()) return 0
+        val total = fresh.size
+        val imageLoader = context.imageLoader
+        val (decodeW, decodeH) = DisplaySize.cappedPx(context)
+        fresh.forEachIndexed { index, entity ->
+            syncStatusTracker.update {
+                it.copy(
+                    phase = SyncPhase.DOWNLOADING,
+                    progressDone = index,
+                    progressTotal = total,
+                    message = "Downloading ${index + 1} of $total"
+                )
+            }
+            val request = ImageRequest.Builder(context)
+                .data(entity.imageUrlOrUri)
+                .size(decodeW, decodeH)
+                .precision(Precision.INEXACT)
+                .memoryCachePolicy(CachePolicy.DISABLED)
+                .diskCachePolicy(CachePolicy.ENABLED)
+                .build()
+            runCatching { imageLoader.execute(request) }
+            upsertPreservingLocalState(listOf(entity))
+        }
+        syncStatusTracker.update { it.copy(progressDone = total, progressTotal = total) }
+        return total
+    }
+
+    private suspend fun existingIds(ids: List<String>): Set<String> =
+        ids.distinct().chunked(500).flatMap { photoDao.getPhotosByIds(it) }.map { it.id }.toSet()
+
+    private fun matchesResolutionAndOrientation(entity: PhotoEntity, prefs: UserPreferences): Boolean {
+        val meetsRes = entity.width >= prefs.resolutionFloor.minWidthPx
+        val meetsAspect = when (prefs.orientationFilter) {
+            OrientationFilter.WIDESCREEN_16_9 ->
+                entity.height > 0 && (entity.width.toFloat() / entity.height.toFloat()) >= 1.50f
+            OrientationFilter.LANDSCAPE_ONLY -> entity.width >= entity.height
+            OrientationFilter.PORTRAIT_ONLY -> entity.height > entity.width
+            OrientationFilter.ALL -> true
+        }
+        return meetsRes && meetsAspect
+    }
+
+    /** Human-readable name of what the next sync will search for, e.g. "Landscapes". */
+    fun describeActiveQuery(prefs: UserPreferences): String =
+        if (prefs.activeCategory == WikimediaCategoryFilter.CUSTOM_QUERY) {
+            "\u201C${prefs.customSearchQuery.trim().ifBlank { "Nature landscape" }}\u201D"
+        } else {
+            prefs.activeCategory.displayName
+        }
 
     /**
      * Toggles the Favorite status of a photo.

@@ -19,6 +19,15 @@ import com.nostr.tvframe.domain.model.TextScaleOption
 import com.nostr.tvframe.domain.model.UiScaleOption
 import com.nostr.tvframe.domain.model.UserPreferences
 import com.nostr.tvframe.domain.model.WikimediaCategoryFilter
+import android.text.format.DateUtils
+import androidx.work.WorkInfo
+import androidx.work.WorkManager
+import com.nostr.tvframe.data.sync.SyncStatus
+import com.nostr.tvframe.data.sync.SyncTrigger
+import com.nostr.tvframe.data.worker.PrefetchWorker
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -51,8 +60,42 @@ class MainViewModel : ViewModel() {
 
     val usbBannerMessage: StateFlow<String?> = usbSource.statusBannerMessage
 
-    private val _isRefreshing = MutableStateFlow(false)
-    val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
+    private val syncTracker = app.syncStatusTracker
+
+    /** Live sync state: phase, "Downloading X of N" progress and the result message. */
+    val syncStatus: StateFlow<SyncStatus> = syncTracker.status
+
+    val isRefreshing: StateFlow<Boolean> = syncTracker.status
+        .map { it.isRunning }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    /**
+     * One line with the persisted last sync (time, trigger, result) and roughly when the
+     * background worker will run next, e.g.
+     * "Last sync 14:32 (manual), 12 new · Next automatic sync around 20:32".
+     */
+    val syncScheduleLine: StateFlow<String> = combine(
+        syncTracker.lastSync,
+        WorkManager.getInstance(app).getWorkInfosForUniqueWorkFlow(PrefetchWorker.WORK_NAME)
+    ) { last, workInfos ->
+        val lastPart = if (last == null) {
+            "No sync yet"
+        } else {
+            val result = if (last.isError) "failed" else "${last.newPhotos} new"
+            "Last sync ${formatTime(last.finishedAtEpochMs)} (${last.trigger.label}), $result"
+        }
+        val info = workInfos.firstOrNull()
+        val nextPart = when {
+            info == null -> "Automatic sync not scheduled"
+            info.state == WorkInfo.State.RUNNING -> "Automatic sync running now"
+            info.nextScheduleTimeMillis in 1 until Long.MAX_VALUE ->
+                "Next automatic sync around ${formatTime(info.nextScheduleTimeMillis)} (needs internet)"
+            else -> "Automatic sync every 6 hours"
+        }
+        "$lastPart · $nextPart"
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
+
+    private var syncJob: Job? = null
 
     private val _statusToast = MutableStateFlow<String?>(null)
     val statusToast: StateFlow<String?> = _statusToast.asStateFlow()
@@ -73,7 +116,7 @@ class MainViewModel : ViewModel() {
 
     init {
         refreshUsbAndCacheMetrics()
-        refreshSources()
+        refreshSources(SyncTrigger.APP_START)
     }
 
     fun updateUiScale(uiScale: UiScaleOption) {
@@ -95,20 +138,27 @@ class MainViewModel : ViewModel() {
         }
     }
 
-    fun refreshSources() {
-        viewModelScope.launch {
-            _isRefreshing.value = true
-            val result = repository.refreshEnabledSources()
-            _isRefreshing.value = false
+    /**
+     * Starts a sync. A manual tap while a sync is already running is ignored (the status line
+     * already shows progress); a filter change cancels the running UI sync and starts over with
+     * the new filter. The result is shown in the Gallery status card, not as a toast.
+     */
+    fun refreshSources(trigger: SyncTrigger = SyncTrigger.MANUAL) {
+        if (trigger == SyncTrigger.MANUAL && syncStatus.value.isRunning) return
+        if (trigger == SyncTrigger.FILTER_CHANGE) syncJob?.cancel()
+        syncJob = viewModelScope.launch {
+            repository.refreshEnabledSources(trigger)
             refreshUsbAndCacheMetrics()
-            result.onSuccess { count ->
-                if (count > 0) {
-                    _statusToast.value = "Synced $count matching photos into active playlist."
-                }
-            }.onFailure { err ->
-                _statusToast.value = "Offline fallback active (${err.localizedMessage ?: "Network unavailable"})."
-            }
         }
+    }
+
+    private fun formatTime(epochMs: Long): String {
+        val flags = if (DateUtils.isToday(epochMs)) {
+            DateUtils.FORMAT_SHOW_TIME
+        } else {
+            DateUtils.FORMAT_SHOW_TIME or DateUtils.FORMAT_SHOW_DATE or DateUtils.FORMAT_ABBREV_MONTH
+        }
+        return DateUtils.formatDateTime(app, epochMs, flags)
     }
 
     fun refreshUsbAndCacheMetrics() {
@@ -128,7 +178,7 @@ class MainViewModel : ViewModel() {
     ) {
         viewModelScope.launch {
             prefsRepo.updateWikimediaFilter(category, customQuery, orientation, resolutionFloor)
-            refreshSources()
+            refreshSources(SyncTrigger.FILTER_CHANGE)
         }
     }
 
@@ -294,7 +344,7 @@ class MainViewModel : ViewModel() {
     ) {
         viewModelScope.launch {
             prefsRepo.updateSources(enableWikimedia, enableUsb, enableSmb, favoritesOnlyScreensaver)
-            refreshSources()
+            refreshSources(SyncTrigger.FILTER_CHANGE)
         }
     }
 
@@ -308,7 +358,7 @@ class MainViewModel : ViewModel() {
                 cacheQuotaMb = quotaMb
             )
             _statusToast.value = "Selected USB path: $path"
-            refreshSources()
+            refreshSources(SyncTrigger.FILTER_CHANGE)
         }
     }
 
@@ -319,7 +369,7 @@ class MainViewModel : ViewModel() {
                 enableUsbSource = true
             )
             _statusToast.value = "Granted USB folder access via Android TV SAF."
-            refreshSources()
+            refreshSources(SyncTrigger.FILTER_CHANGE)
         }
     }
 
@@ -359,7 +409,7 @@ class MainViewModel : ViewModel() {
             val testResult = smbSource.testSmbConnection(hostIp, shareAndPath, authMode)
             testResult.onSuccess { count ->
                 _statusToast.value = "SMB Connected! Found $count photos in root. Syncing…"
-                refreshSources()
+                refreshSources(SyncTrigger.FILTER_CHANGE)
             }.onFailure { err ->
                 _statusToast.value = "SMB Error: ${err.localizedMessage ?: "Check IP, Share name, or credentials"}"
             }
