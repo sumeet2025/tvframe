@@ -153,7 +153,7 @@ class MainViewModel : ViewModel() {
      */
     fun refreshSources(trigger: SyncTrigger = SyncTrigger.MANUAL) {
         if (trigger == SyncTrigger.MANUAL && syncStatus.value.isRunning) return
-        if (trigger == SyncTrigger.FILTER_CHANGE || trigger == SyncTrigger.AFTER_CLEAR) syncJob?.cancel()
+        if (trigger == SyncTrigger.FILTER_CHANGE) syncJob?.cancel()
         syncJob = viewModelScope.launch {
             repository.refreshEnabledSources(trigger)
             refreshUsbAndCacheMetrics()
@@ -281,14 +281,23 @@ class MainViewModel : ViewModel() {
         }
     }
 
+    /**
+     * Removes every non-favorite photo and does nothing else: no sync starts. A sync started from
+     * the app that is still running is cancelled first, so it can't refill the gallery right after
+     * the clear. New photos only come from the Sync button or the 6-hourly automatic sync.
+     */
     fun deleteAllNonFavoriteGalleryPhotos() {
         viewModelScope.launch {
-            repository.deleteAllNonFavoritePhotos()
+            syncJob?.cancel()
+            syncJob?.join()
+            val removed = repository.deleteAllNonFavoritePhotos()
             _selectedGalleryIds.value = emptySet()
             refreshUsbAndCacheMetrics()
-            // Start refilling right away; the status card shows progress. Seen history is kept,
-            // so this brings new photos rather than the ones just cleared.
-            refreshSources(SyncTrigger.AFTER_CLEAR)
+            val count = userPreferences.value.photosPerSync
+            syncTracker.hint(
+                "Cleared $removed photo${if (removed == 1) "" else "s"}. Favorites were kept. " +
+                    "Press ⟳ Sync $count New to get new photos."
+            )
         }
     }
 

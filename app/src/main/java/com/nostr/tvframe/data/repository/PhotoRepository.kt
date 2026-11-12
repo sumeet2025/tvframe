@@ -19,6 +19,7 @@ import com.nostr.tvframe.domain.model.PhotoItem
 import com.nostr.tvframe.domain.model.PhotoSourceType
 import com.nostr.tvframe.domain.model.UserPreferences
 import com.nostr.tvframe.domain.model.WikimediaCategoryFilter
+import com.nostr.tvframe.data.sync.AutoSyncPolicy
 import com.nostr.tvframe.data.sync.PagedCollector
 import com.nostr.tvframe.data.sync.SearchPage
 import com.nostr.tvframe.data.sync.SyncMath
@@ -167,15 +168,18 @@ class PhotoRepository(
         }
 
     /**
-     * True when an automatic sync (app opened, screensaver started) should run: never synced,
-     * last sync more than 6 hours ago, or the gallery is empty. Keeps the app from pulling in a
-     * new batch every time it's opened.
+     * True when an automatic sync (app opened, screensaver started) should run. See
+     * [AutoSyncPolicy] for the rules; in short: never synced, last sync more than 6 hours ago, or
+     * the gallery is empty for a reason other than me clearing it since the last sync.
      */
     suspend fun isAutoSyncDue(): Boolean = withContext(Dispatchers.IO) {
-        val last = syncStatusTracker.lastSync.first()
-        last == null ||
-            System.currentTimeMillis() - last.finishedAtEpochMs > AUTO_SYNC_MIN_INTERVAL_MS ||
-            photoDao.countPhotos() == 0
+        AutoSyncPolicy.isDue(
+            nowEpochMs = System.currentTimeMillis(),
+            lastSyncEpochMs = syncStatusTracker.lastSync.first()?.finishedAtEpochMs,
+            lastClearEpochMs = syncStatusTracker.lastClearEpochMs.first(),
+            galleryEmpty = photoDao.countPhotos() == 0,
+            minIntervalMs = AUTO_SYNC_MIN_INTERVAL_MS
+        )
     }
 
     private suspend fun runSync(prefs: UserPreferences, queryLabel: String): SyncReport {
@@ -424,7 +428,7 @@ class PhotoRepository(
      * Deletes all non-favorited downloaded photos from the Gallery & local cache so the user
      * can start fresh with a new category or resolution filter.
      */
-    suspend fun deleteAllNonFavoritePhotos() = withContext(Dispatchers.IO) {
+    suspend fun deleteAllNonFavoritePhotos(): Int = withContext(Dispatchers.IO) {
         val nonFavs = photoDao.getNonFavoritePhotosOrderedByLru()
         for (entity in nonFavs) {
             entity.localCachedFilePath?.let { path ->
@@ -434,6 +438,10 @@ class PhotoRepository(
             }
         }
         photoDao.deleteAllNonFavoritePhotos()
+        // Remember the clear so an empty gallery doesn't trigger an automatic refill on the next
+        // app open or screensaver start.
+        syncStatusTracker.markCleared()
+        nonFavs.size
     }
 
     /**
