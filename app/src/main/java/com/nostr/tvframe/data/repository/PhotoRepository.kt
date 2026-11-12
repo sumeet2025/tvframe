@@ -150,9 +150,11 @@ class PhotoRepository(
         var newPhotos = 0
         var wikimediaMatched = 0
         var wikimediaOffline = false
+        val customSearchMissing = prefs.activeCategory == WikimediaCategoryFilter.CUSTOM_QUERY &&
+            prefs.customSearchQuery.isBlank()
 
         // 1. Wikimedia Commons
-        if (prefs.enableWikimedia) {
+        if (prefs.enableWikimedia && !customSearchMissing) {
             if (!isNetworkAvailable()) {
                 wikimediaOffline = true
             } else {
@@ -217,6 +219,8 @@ class PhotoRepository(
         val message = when {
             !prefs.enableWikimedia && !prefs.enableUsbSource && !prefs.enableSmbSource ->
                 "Nothing to sync: every photo source is turned off."
+            prefs.enableWikimedia && customSearchMissing && newPhotos == 0 ->
+                "Custom Search is selected but the search box is empty. Type what you want to see and press Search."
             wikimediaOffline && newPhotos == 0 ->
                 "No internet connection. Showing photos already on this TV."
             newPhotos > 0 ->
@@ -281,7 +285,9 @@ class PhotoRepository(
     /** Human-readable name of what the next sync will search for, e.g. "Landscapes". */
     fun describeActiveQuery(prefs: UserPreferences): String =
         if (prefs.activeCategory == WikimediaCategoryFilter.CUSTOM_QUERY) {
-            "\u201C${prefs.customSearchQuery.trim().ifBlank { "Nature landscape" }}\u201D"
+            prefs.customSearchQuery.trim().takeIf { it.isNotEmpty() }
+                ?.let { "\u201C$it\u201D" }
+                ?: "Custom Search (type what you want to see)"
         } else {
             prefs.activeCategory.displayName
         }
@@ -383,8 +389,7 @@ class PhotoRepository(
 
     private fun buildEffectiveWikimediaQuery(prefs: UserPreferences): String {
         return if (prefs.activeCategory == WikimediaCategoryFilter.CUSTOM_QUERY) {
-            val userText = prefs.customSearchQuery.trim().ifBlank { "Nature landscape" }
-            "$userText filetype:bitmap"
+            "${prefs.customSearchQuery.trim()} filetype:bitmap"
         } else {
             prefs.activeCategory.commonsQuery
         }

@@ -81,7 +81,7 @@ class UserPreferencesRepository(private val context: Context) {
             enableUsbSource = prefs[Keys.ENABLE_USB_SOURCE] ?: false,
             enableSmbSource = prefs[Keys.ENABLE_SMB_SOURCE] ?: false,
             activeCategory = enumOrDefault(prefs[Keys.ACTIVE_CATEGORY], WikimediaCategoryFilter.PICTURES_OF_THE_DAY),
-            customSearchQuery = prefs[Keys.CUSTOM_SEARCH_QUERY] ?: "Alpine mountains sunset",
+            customSearchQuery = prefs[Keys.CUSTOM_SEARCH_QUERY] ?: "",
             orientationFilter = enumOrDefault(prefs[Keys.ORIENTATION_FILTER], OrientationFilter.LANDSCAPE_ONLY),
             resolutionFloor = enumOrDefault(prefs[Keys.RESOLUTION_FLOOR], ResolutionFloor.FHD_1080P),
             photoDisplayMode = enumOrDefault(prefs[Keys.PHOTO_DISPLAY_MODE], PhotoDisplayMode.FULLSCREEN_CROP),

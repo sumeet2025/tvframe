@@ -27,6 +27,7 @@ import com.nostr.tvframe.data.sync.SyncTrigger
 import com.nostr.tvframe.data.worker.PrefetchWorker
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -96,6 +97,11 @@ class MainViewModel : ViewModel() {
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
 
     private var syncJob: Job? = null
+
+    /** What "Sync New" will download, e.g. "Landscapes" or "“Swiss Alps”". */
+    val activeQueryLabel: StateFlow<String> = prefsRepo.userPreferencesFlow
+        .map { repository.describeActiveQuery(it) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
 
     private val _statusToast = MutableStateFlow<String?>(null)
     val statusToast: StateFlow<String?> = _statusToast.asStateFlow()
@@ -178,7 +184,11 @@ class MainViewModel : ViewModel() {
     ) {
         viewModelScope.launch {
             prefsRepo.updateWikimediaFilter(category, customQuery, orientation, resolutionFloor)
-            refreshSources(SyncTrigger.FILTER_CHANGE)
+            val updated = prefsRepo.userPreferencesFlow.first()
+            // Picking "Custom Search" with an empty box just reveals the search box; nothing to sync yet.
+            val waitingForSearchText = updated.activeCategory == WikimediaCategoryFilter.CUSTOM_QUERY &&
+                updated.customSearchQuery.isBlank()
+            if (!waitingForSearchText) refreshSources(SyncTrigger.FILTER_CHANGE)
         }
     }
 
