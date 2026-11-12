@@ -35,8 +35,8 @@ android {
         // Minimum SDK 30 (Android TV 11); works on any Android TV / Google TV device running Android 11+
         minSdk = 30
         targetSdk = 35
-        versionCode = 3
-        versionName = "1.2.0"
+        versionCode = 4
+        versionName = "1.3.0"
 
         vectorDrawables {
             useSupportLibrary = true
