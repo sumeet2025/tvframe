@@ -20,6 +20,7 @@ enum class SyncTrigger(val label: String) {
     MANUAL("manual"),
     APP_START("app opened"),
     FILTER_CHANGE("settings changed"),
+    /** No longer used since 1.3.1; kept so sync records saved by 1.3.0 still read back. */
     AFTER_CLEAR("after clearing"),
     SCREENSAVER("screensaver"),
     BACKGROUND("automatic")
@@ -81,6 +82,7 @@ class SyncStatusTracker(private val context: Context) {
         val LAST_SYNC_NEW = intPreferencesKey("last_sync_new")
         val LAST_SYNC_MESSAGE = stringPreferencesKey("last_sync_message")
         val LAST_SYNC_ERROR = booleanPreferencesKey("last_sync_error")
+        val LAST_CLEAR_AT = longPreferencesKey("last_clear_at")
     }
 
     private val _status = MutableStateFlow(SyncStatus())
@@ -96,6 +98,13 @@ class SyncStatusTracker(private val context: Context) {
             message = prefs[Keys.LAST_SYNC_MESSAGE] ?: "",
             isError = prefs[Keys.LAST_SYNC_ERROR] ?: false
         )
+    }
+
+    /** When "Clear Non-Favorites" last ran, or null if never. */
+    val lastClearEpochMs: Flow<Long?> = context.syncDataStore.data.map { it[Keys.LAST_CLEAR_AT] }
+
+    suspend fun markCleared() {
+        context.syncDataStore.edit { it[Keys.LAST_CLEAR_AT] = System.currentTimeMillis() }
     }
 
     fun update(transform: (SyncStatus) -> SyncStatus) {
