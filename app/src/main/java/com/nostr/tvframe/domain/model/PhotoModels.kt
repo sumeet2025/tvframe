@@ -156,6 +156,10 @@ enum class SmbAuthMode(val label: String) {
     USER_PASSWORD("Username & Password")
 }
 
+/** Choices offered by the "Photos per sync" picker. */
+val PHOTOS_PER_SYNC_OPTIONS = listOf(10, 20, 30, 40, 50)
+const val DEFAULT_PHOTOS_PER_SYNC = 30
+
 /**
  * Comprehensive user settings controlling UI density, data sources, slideshow motion, and overlay appearance.
  */
@@ -172,6 +176,8 @@ data class UserPreferences(
     val customSearchQuery: String = "",
     val orientationFilter: OrientationFilter = OrientationFilter.LANDSCAPE_ONLY,
     val resolutionFloor: ResolutionFloor = ResolutionFloor.FHD_1080P,
+    /** How many new photos one sync downloads (10–50). */
+    val photosPerSync: Int = DEFAULT_PHOTOS_PER_SYNC,
     val photoDisplayMode: PhotoDisplayMode = PhotoDisplayMode.FULLSCREEN_CROP,
     val favoritesOnlyInScreensaver: Boolean = false,
 

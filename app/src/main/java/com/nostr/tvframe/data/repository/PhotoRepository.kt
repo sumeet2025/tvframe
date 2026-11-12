@@ -16,7 +16,8 @@ import com.nostr.tvframe.domain.model.PhotoItem
 import com.nostr.tvframe.domain.model.PhotoSourceType
 import com.nostr.tvframe.domain.model.UserPreferences
 import com.nostr.tvframe.domain.model.WikimediaCategoryFilter
-import com.nostr.tvframe.data.sync.CategoryMix
+import com.nostr.tvframe.data.sync.PagedCollector
+import com.nostr.tvframe.data.sync.SearchPage
 import com.nostr.tvframe.data.sync.SyncMath
 import com.nostr.tvframe.data.sync.SyncPhase
 import com.nostr.tvframe.data.sync.SyncReport
@@ -54,6 +55,14 @@ class PhotoRepository(
 ) {
 
     private val syncMutex = Mutex()
+
+    private companion object {
+        /** Results per Commons search request. */
+        const val PAGE_SIZE = 50
+
+        /** Upper bound on search pages per category in one sync (8 × 50 = 400 results). */
+        const val MAX_PAGES_PER_CATEGORY = 8
+    }
 
     /**
      * Reactive stream of active photos for the in-app gallery and slideshow, matching the user's
@@ -151,6 +160,7 @@ class PhotoRepository(
         val existingFavoritesIds = photoDao.getAllFavoritesSync().map { it.id }.toSet()
         var newPhotos = 0
         var wikimediaMatched = 0
+        var wikimediaShortfall = false
         var wikimediaOffline = false
         val categories = searchableCategories(prefs)
         val customSearchMissing = categories.isEmpty() &&
@@ -163,26 +173,42 @@ class PhotoRepository(
             } else {
                 val (screenWidthPx, _) = DisplaySize.screenPx(context)
                 val thumbWidth = SyncMath.thumbnailWidthFor(prefs.resolutionFloor.minWidthPx, screenWidthPx)
-                val perCategory = categories.map { category ->
-                    val response = wikimediaApi.searchCommonsImages(
-                        searchQuery = buildWikimediaQuery(category, prefs),
-                        limit = 50,
-                        thumbnailWidth = thumbWidth
-                    )
-                    response.query?.pages?.values.orEmpty()
-                        .sortedBy { it.index } // keep Commons' relevance order
-                        .mapNotNull { page -> WikimediaClient.mapDtoToEntity(page, category.name) }
-                        .filter { entity -> matchesResolutionAndOrientation(entity, prefs) }
+                val alreadyStored = HashSet<String>()
+                val target = prefs.photosPerSync
+                val collected = PagedCollector.collect(
+                    categories = categories,
+                    target = target,
+                    maxPagesPerCategory = MAX_PAGES_PER_CATEGORY,
+                    startOffset = { 0 },
+                    fetchPage = { category, offset ->
+                        val response = wikimediaApi.searchCommonsImages(
+                            searchQuery = buildWikimediaQuery(category, prefs),
+                            limit = PAGE_SIZE,
+                            offset = offset.takeIf { it > 0 },
+                            thumbnailWidth = thumbWidth
+                        )
+                        val entities = response.query?.pages?.values.orEmpty()
+                            .sortedBy { it.index } // keep Commons' relevance order
+                            .mapNotNull { page -> WikimediaClient.mapDtoToEntity(page, category.name) }
+                            .filter { entity -> matchesResolutionAndOrientation(entity, prefs) }
+                        alreadyStored += existingIds(entities.map { it.id })
+                        SearchPage(entities, response.continuation?.gsroffset)
+                    },
+                    // Only photos that aren't in the gallery yet count toward the target.
+                    isWanted = { entity -> entity.id !in alreadyStored },
+                    // The same photo can show up under two categories; ids are "wikimedia_<pageid>".
+                    key = { it.id },
+                    onPage = { scanned ->
+                        syncStatusTracker.update {
+                            it.copy(message = "Looking for new photos… checked $scanned results")
+                        }
+                    }
+                )
+                wikimediaMatched = collected.wantedFound + alreadyStored.size
+                val fresh = collected.picked.map { entity ->
+                    entity.copy(isFavorite = entity.id in existingFavoritesIds)
                 }
-                // The same photo can show up under two categories; ids are "wikimedia_<pageid>".
-                val mapped = CategoryMix.interleaveDistinct(perCategory, limit = 50) { it.id }
-                    .map { entity -> entity.copy(isFavorite = entity.id in existingFavoritesIds) }
-                wikimediaMatched = mapped.size
-
-                val alreadyStored = existingIds(mapped.map { it.id })
-                val (known, fresh) = mapped.partition { it.id in alreadyStored }
-                // Refresh metadata for photos we already have (cheap, no download).
-                upsertPreservingLocalState(known)
+                wikimediaShortfall = fresh.size < target
                 newPhotos += downloadAndStore(fresh)
             }
         }
@@ -232,12 +258,14 @@ class PhotoRepository(
             wikimediaOffline && newPhotos == 0 ->
                 "No internet connection. Showing photos already on this TV."
             newPhotos > 0 ->
-                "Added $newPhotos new photo${if (newPhotos == 1) "" else "s"}."
+                "Added $newPhotos new photo${if (newPhotos == 1) "" else "s"}." +
+                    if (wikimediaShortfall) " That's every new match found this time." else ""
             prefs.enableWikimedia && wikimediaMatched == 0 ->
                 "No photos matched $queryLabel at ${prefs.resolutionFloor.label} or higher, " +
                     "${prefs.orientationFilter.label}. Try another category or a lower resolution."
             else ->
-                "No new photos. All $wikimediaMatched matches are already in your gallery."
+                "No new photos. Everything that matched is already in your gallery. " +
+                    "Try another category or a different minimum resolution."
         }
         return SyncReport(newPhotos = newPhotos, queryLabel = queryLabel, message = message)
     }

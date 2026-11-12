@@ -9,7 +9,9 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.nostr.tvframe.domain.model.DEFAULT_PHOTOS_PER_SYNC
 import com.nostr.tvframe.domain.model.FontFamilyOption
+import com.nostr.tvframe.domain.model.PHOTOS_PER_SYNC_OPTIONS
 import com.nostr.tvframe.domain.model.OrientationFilter
 import com.nostr.tvframe.domain.model.OverlayAnchor
 import com.nostr.tvframe.domain.model.PhotoDisplayMode
@@ -44,6 +46,7 @@ class UserPreferencesRepository(private val context: Context) {
         val CUSTOM_SEARCH_QUERY = stringPreferencesKey("custom_search_query")
         val ORIENTATION_FILTER = stringPreferencesKey("orientation_filter")
         val RESOLUTION_FLOOR = stringPreferencesKey("resolution_floor")
+        val PHOTOS_PER_SYNC = intPreferencesKey("photos_per_sync")
         val PHOTO_DISPLAY_MODE = stringPreferencesKey("photo_display_mode")
         val FAVORITES_ONLY_SCREENSAVER = booleanPreferencesKey("favorites_only_screensaver")
 
@@ -87,6 +90,8 @@ class UserPreferencesRepository(private val context: Context) {
             customSearchQuery = prefs[Keys.CUSTOM_SEARCH_QUERY] ?: "",
             orientationFilter = enumOrDefault(prefs[Keys.ORIENTATION_FILTER], OrientationFilter.LANDSCAPE_ONLY),
             resolutionFloor = enumOrDefault(prefs[Keys.RESOLUTION_FLOOR], ResolutionFloor.FHD_1080P),
+            photosPerSync = (prefs[Keys.PHOTOS_PER_SYNC] ?: DEFAULT_PHOTOS_PER_SYNC)
+                .takeIf { it in PHOTOS_PER_SYNC_OPTIONS } ?: DEFAULT_PHOTOS_PER_SYNC,
             photoDisplayMode = enumOrDefault(prefs[Keys.PHOTO_DISPLAY_MODE], PhotoDisplayMode.FULLSCREEN_CROP),
             favoritesOnlyInScreensaver = prefs[Keys.FAVORITES_ONLY_SCREENSAVER] ?: false,
 
@@ -156,6 +161,12 @@ class UserPreferencesRepository(private val context: Context) {
             customQuery?.let { prefs[Keys.CUSTOM_SEARCH_QUERY] = it }
             orientation?.let { prefs[Keys.ORIENTATION_FILTER] = it.name }
             resolutionFloor?.let { prefs[Keys.RESOLUTION_FLOOR] = it.name }
+        }
+    }
+
+    suspend fun updatePhotosPerSync(count: Int) {
+        context.dataStore.edit { prefs ->
+            prefs[Keys.PHOTOS_PER_SYNC] = count.coerceIn(PHOTOS_PER_SYNC_OPTIONS.first(), PHOTOS_PER_SYNC_OPTIONS.last())
         }
     }
 

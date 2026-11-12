@@ -30,6 +30,8 @@ interface WikimediaApiService {
         @Query("gsrsearch") searchQuery: String,
         @Query("gsrnamespace") namespace: Int = 6, // File: namespace
         @Query("gsrlimit") limit: Int = 35,
+        /** Result offset for paging; null (omitted) for the first page. */
+        @Query("gsroffset") offset: Int? = null,
         @Query("prop") prop: String = "imageinfo|categories",
         @Query("cllimit") categoryLimit: Int = 15,
         @Query("iiprop") iiProp: String = "url|size|extmetadata",
@@ -39,7 +41,14 @@ interface WikimediaApiService {
 
 @Serializable
 data class WikimediaQueryResponse(
-    val query: WikimediaPagesContainer? = null
+    val query: WikimediaPagesContainer? = null,
+    /** Present when there are more results; absent on the last page. */
+    @SerialName("continue") val continuation: WikimediaContinue? = null
+)
+
+@Serializable
+data class WikimediaContinue(
+    val gsroffset: Int? = null
 )
 
 @Serializable
