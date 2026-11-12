@@ -139,10 +139,13 @@ enum class OrientationFilter(val label: String) {
  * Minimum resolution floor for fetched Wikimedia images.
  */
 enum class ResolutionFloor(val label: String, val minWidthPx: Int) {
-    HD_720P("720p HD (1280px+)", 1280),
-    FHD_1080P("1080p Full HD (1920px+)", 1920),
-    QHD_2K("2K QHD (2560px+)", 2560),
-    UHD_4K("4K UHD (3840px+)", 3840)
+    HD_720P("720p", 1280),
+    FHD_1080P("1080p", 1920),
+    QHD_2K("2K", 2560),
+    UHD_4K("4K", 3840);
+
+    /** e.g. "1080p (1920px+)" */
+    val longLabel: String get() = "$label (${minWidthPx}px+)"
 }
 
 /**

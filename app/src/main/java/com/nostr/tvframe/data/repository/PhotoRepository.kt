@@ -17,6 +17,7 @@ import com.nostr.tvframe.domain.model.PhotoSourceType
 import com.nostr.tvframe.domain.model.UserPreferences
 import com.nostr.tvframe.domain.model.WikimediaCategoryFilter
 import com.nostr.tvframe.data.sync.CategoryMix
+import com.nostr.tvframe.data.sync.SyncMath
 import com.nostr.tvframe.data.sync.SyncPhase
 import com.nostr.tvframe.data.sync.SyncReport
 import com.nostr.tvframe.data.sync.SyncStatusTracker
@@ -160,11 +161,13 @@ class PhotoRepository(
             if (!isNetworkAvailable()) {
                 wikimediaOffline = true
             } else {
+                val (screenWidthPx, _) = DisplaySize.screenPx(context)
+                val thumbWidth = SyncMath.thumbnailWidthFor(prefs.resolutionFloor.minWidthPx, screenWidthPx)
                 val perCategory = categories.map { category ->
                     val response = wikimediaApi.searchCommonsImages(
                         searchQuery = buildWikimediaQuery(category, prefs),
                         limit = 50,
-                        thumbnailWidth = prefs.resolutionFloor.minWidthPx.coerceAtLeast(1920)
+                        thumbnailWidth = thumbWidth
                     )
                     response.query?.pages?.values.orEmpty()
                         .sortedBy { it.index } // keep Commons' relevance order
@@ -231,7 +234,7 @@ class PhotoRepository(
             newPhotos > 0 ->
                 "Added $newPhotos new photo${if (newPhotos == 1) "" else "s"}."
             prefs.enableWikimedia && wikimediaMatched == 0 ->
-                "No photos matched $queryLabel at ${prefs.resolutionFloor.label}, " +
+                "No photos matched $queryLabel at ${prefs.resolutionFloor.label} or higher, " +
                     "${prefs.orientationFilter.label}. Try another category or a lower resolution."
             else ->
                 "No new photos. All $wikimediaMatched matches are already in your gallery."
@@ -406,12 +409,17 @@ class PhotoRepository(
         photoDao.touchPhotoAccessTime(photoId)
     }
 
+    /**
+     * Commons search query for one category, with the minimum resolution applied server-side
+     * (`filew:>N`) so results below the floor don't use up the page.
+     */
     private fun buildWikimediaQuery(category: WikimediaCategoryFilter, prefs: UserPreferences): String {
-        return if (category == WikimediaCategoryFilter.CUSTOM_QUERY) {
+        val base = if (category == WikimediaCategoryFilter.CUSTOM_QUERY) {
             "${prefs.customSearchQuery.trim()} filetype:bitmap"
         } else {
             category.commonsQuery
         }
+        return "$base ${SyncMath.minWidthKeyword(prefs.resolutionFloor.minWidthPx)}"
     }
 
     private fun isNetworkAvailable(): Boolean {
