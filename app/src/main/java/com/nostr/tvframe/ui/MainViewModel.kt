@@ -202,6 +202,16 @@ class MainViewModel : ViewModel() {
         }
     }
 
+    val seenCount: StateFlow<Int> = repository.seenCountFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    fun resetSeenHistory() {
+        viewModelScope.launch {
+            repository.resetSeenHistory()
+            _statusToast.value = "Seen history cleared. The next sync can bring back photos you've had before."
+        }
+    }
+
     /** Remembered until changed; doesn't start a sync by itself. */
     fun updatePhotosPerSync(count: Int) {
         viewModelScope.launch { prefsRepo.updatePhotosPerSync(count) }

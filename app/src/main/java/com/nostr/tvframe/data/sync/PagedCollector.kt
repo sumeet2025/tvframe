@@ -21,6 +21,7 @@ data class CollectResult<C, T>(
 
 /**
  * Pages through several searches round-robin until enough wanted results are found.
+ * A search that resumes part-way through wraps around to the top once when it hits the end.
  */
 object PagedCollector {
 
@@ -46,7 +47,9 @@ object PagedCollector {
     ): CollectResult<C, T> {
         val found = categories.associateWith { mutableListOf<Found<T>>() }
         val keysPerCategory = categories.associateWith { HashSet<K>() }
-        val nextOffset = categories.associateWith { startOffset(it) as Int? }.toMutableMap()
+        val starts = categories.associateWith { startOffset(it).coerceAtLeast(0) }
+        val nextOffset = categories.associateWith { starts.getValue(it) as Int? }.toMutableMap()
+        val wrapped = categories.associateWith { false }.toMutableMap()
         val pagesFetched = categories.associateWith { 0 }.toMutableMap()
         var scanned = 0
 
@@ -67,7 +70,17 @@ object PagedCollector {
                     }
                 }
                 // A page with no items can't advance; treat it as the end to avoid looping.
-                nextOffset[category] = page.nextOffset?.takeIf { page.items.isNotEmpty() && it > offset }
+                var next = page.nextOffset?.takeIf { page.items.isNotEmpty() && it > offset }
+                val start = starts.getValue(category)
+                if (next == null && !wrapped.getValue(category) && start > 0) {
+                    // Reached the end after resuming mid-way: wrap once to the top so results
+                    // before the resume point (or newly added photos) still get a chance.
+                    next = 0
+                    wrapped[category] = true
+                } else if (next != null && wrapped.getValue(category) && next >= start) {
+                    next = null // back where this sync started: everything has been looked at
+                }
+                nextOffset[category] = next
                 onPage(scanned)
             }
             if (pickedSoFar().size >= target) break
