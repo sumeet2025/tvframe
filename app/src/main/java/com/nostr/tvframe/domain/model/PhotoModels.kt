@@ -30,17 +30,27 @@ enum class PhotoDisplayMode(val label: String) {
 }
 
 /**
- * Curated Wikimedia Commons category presets plus Picture of the Day and custom search query.
+ * Curated Wikimedia Commons category presets plus custom search query.
+ *
+ * Commons search treats `incategory:A|B` as "in A or in B" and `deepcat:` as "in this category or
+ * any sub-category". The older `incategory:"A" OR incategory:"B"` form and the non-existent
+ * "Pictures_of_the_day" category matched almost nothing (0 results for Pictures of the Day),
+ * so every preset below was checked against the live API to return hundreds of photos or more.
  */
 enum class WikimediaCategoryFilter(val displayName: String, val commonsQuery: String) {
-    PICTURES_OF_THE_DAY("Pictures of the Day", "incategory:\"Pictures_of_the_day\" filetype:bitmap"),
-    MOUNTAINS("Mountains", "incategory:\"Featured_pictures_of_mountains\" OR incategory:\"Quality_images_of_mountains\" filetype:bitmap"),
-    RAIN("Rain & Storms", "incategory:\"Quality_images_of_rain\" OR incategory:\"Rain_in_art\" OR \"rain landscape\" filetype:bitmap"),
-    BIRDS("Birds", "incategory:\"Featured_pictures_of_birds\" filetype:bitmap"),
-    LAKES("Lakes & Reflections", "incategory:\"Featured_pictures_of_lakes\" OR incategory:\"Quality_images_of_lakes\" filetype:bitmap"),
-    LANDSCAPES("Landscapes", "incategory:\"Featured_pictures_of_landscapes\" filetype:bitmap"),
-    NIGHT_SKY("Night Sky & Aurora", "incategory:\"Featured_pictures_of_astronomy\" OR incategory:\"Quality_images_of_auroras\" filetype:bitmap"),
-    ARCHITECTURE("Architecture", "incategory:\"Featured_pictures_of_architecture\" filetype:bitmap"),
+    PICTURES_OF_THE_DAY(
+        "Pictures of the Day",
+        "incategory:Pictures_of_the_day_(2026)|Pictures_of_the_day_(2025)|Pictures_of_the_day_(2024)|" +
+            "Pictures_of_the_day_(2023)|Pictures_of_the_day_(2022)|Pictures_of_the_day_(2021)|" +
+            "Pictures_of_the_day_(2020) filetype:bitmap"
+    ),
+    MOUNTAINS("Mountains", "incategory:Featured_pictures_of_mountains|Quality_images_of_mountains filetype:bitmap"),
+    RAIN("Rain & Storms", "incategory:Quality_images_of_rain|Featured_pictures_of_lightning|Quality_images_of_lightning filetype:bitmap"),
+    BIRDS("Birds", "deepcat:\"Featured pictures of birds\" filetype:bitmap"),
+    LAKES("Lakes & Reflections", "incategory:Featured_pictures_of_lakes|Quality_images_of_lakes filetype:bitmap"),
+    LANDSCAPES("Landscapes", "deepcat:\"Featured pictures of landscapes\" filetype:bitmap"),
+    NIGHT_SKY("Night Sky & Space", "deepcat:\"Featured pictures of astronomy\" filetype:bitmap"),
+    ARCHITECTURE("Architecture", "deepcat:\"Featured pictures of architecture\" filetype:bitmap"),
     CUSTOM_QUERY("Custom Search", "")
 }
 
