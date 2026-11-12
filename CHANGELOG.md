@@ -3,6 +3,24 @@
 All notable changes to TVFrame are listed here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and TVFrame uses [Semantic Versioning](https://semver.org/).
 
+## [1.3.1] - 2026-11-12
+
+A small follow-up to 1.3.0 that fixes what I ran into using it on my own TV, plus one screensaver option I wanted.
+
+### Added
+- **"Favorites (Random)" screensaver mode.** The Favorites tab now has a single-choice "Screensaver:" row with All Sources, Favorites Only and Favorites (Random). Random shuffles your favorites every time the screensaver starts and shows each one once before any repeats, then reshuffles. ([#18](https://github.com/sumeet2025/tvframe/pull/18), fixes [#14](https://github.com/sumeet2025/tvframe/issues/14))
+
+### Changed
+- **"Clear Non-Favorites" only clears now.** It no longer starts a sync, and an empty gallery right after a clear doesn't trigger one when the app opens or the screensaver starts. The status card says to press Sync for new photos. New photos arrive only when you press ⟳ Sync, or from the automatic sync roughly every 6 hours. ([#15](https://github.com/sumeet2025/tvframe/pull/15), fixes [#11](https://github.com/sumeet2025/tvframe/issues/11))
+- **Favorites are no longer pinned to the top of the Gallery.** They stay in their normal place, newest first, marked with ♥ and a coral outline. The Favorites tab is where they're shown together. The slideshow and the "All Sources" screensaver follow the same order. ([#16](https://github.com/sumeet2025/tvframe/pull/16), fixes [#12](https://github.com/sumeet2025/tvframe/issues/12))
+
+### Fixed
+- **Tapping a photo in the Gallery** now opens the slideshow on that photo and continues from there, instead of starting from the first photo. ([#17](https://github.com/sumeet2025/tvframe/pull/17), fixes [#13](https://github.com/sumeet2025/tvframe/issues/13))
+
+### Upgrade notes
+- It's signed with the same key, so it installs over 1.3.0 or 1.2.0 without uninstalling. Photos, favorites and settings are kept. If you had "Favorites Only" on, it stays on.
+- There's no database change in this release.
+
 ## [1.3.0] - 2026-11-12
 
 This release is all about **Sync**: being able to see what it's doing, choosing what it downloads, and getting new photos instead of the same ones again.
@@ -54,5 +72,6 @@ This release is all about **Sync**: being able to see what it's doing, choosing 
 ### Fixed
 - Manifest and USB receiver issues (USB events were handled twice).
 
+[1.3.1]: https://github.com/sumeet2025/tvframe/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/sumeet2025/tvframe/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/sumeet2025/tvframe/releases/tag/v1.2.0
