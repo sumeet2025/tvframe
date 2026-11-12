@@ -120,6 +120,7 @@ private class SlideFrame(val photo: PhotoItem) {
  * of the 16:9 TV screen edge-to-edge with zero side margins.
  *
  * The current photo is tracked by id against a stable [SlideOrder] snapshot, never by list index.
+ * [startPhotoId] picks the first photo shown; the rest follow in snapshot order.
  */
 @Composable
 fun SlideshowRenderer(
@@ -127,6 +128,8 @@ fun SlideshowRenderer(
     preferences: UserPreferences,
     isDreamServiceMode: Boolean,
     usbStatusBanner: String? = null,
+    /** Photo to open on (e.g. the one tapped in the Gallery); null starts at the first photo. */
+    startPhotoId: String? = null,
     onToggleFavorite: (PhotoItem) -> Unit,
     onPhotoDisplayed: (PhotoItem) -> Unit,
     onExitOrWakeTv: () -> Unit
@@ -145,7 +148,9 @@ fun SlideshowRenderer(
     val slideOrder = remember { SlideOrder() }
     val order = remember(photos) { slideOrder.reconcile(photos.map { it.id }) }
     val photosById = remember(photos) { photos.associateBy { it.id } }
-    var selectedId by remember { mutableStateOf<String?>(null) }
+    // Start on the requested photo if it's in the playlist. From there the show continues in
+    // play order and wraps around, so every photo still gets shown.
+    var selectedId by remember { mutableStateOf(startPhotoId?.takeIf { photosById.containsKey(it) }) }
     val selected = selectedId
     val currentId: String? = when {
         order.isEmpty() -> null
