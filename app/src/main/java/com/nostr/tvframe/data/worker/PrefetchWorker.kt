@@ -13,6 +13,7 @@ import coil.request.CachePolicy
 import coil.request.ImageRequest
 import coil.size.Precision
 import com.nostr.tvframe.TVFrameApp
+import com.nostr.tvframe.data.sync.SyncTrigger
 import com.nostr.tvframe.util.DisplaySize
 import kotlinx.coroutines.flow.first
 import java.util.concurrent.TimeUnit
@@ -30,7 +31,7 @@ class PrefetchWorker(
     override suspend fun doWork(): Result {
         return runCatching {
             val app = TVFrameApp.instance
-            app.photoRepository.refreshEnabledSources()
+            app.photoRepository.refreshEnabledSources(SyncTrigger.BACKGROUND)
 
             // Pre-warm Coil's DISK cache for the next 25 photos (screensaver playlist first) so
             // crossfades never stutter. Requests run one at a time, are decoded at no more than
@@ -64,7 +65,7 @@ class PrefetchWorker(
     }
 
     companion object {
-        private const val WORK_NAME = "tvframe_periodic_prefetch"
+        const val WORK_NAME = "tvframe_periodic_prefetch"
 
         fun schedulePeriodicPrefetch(context: Context) {
             val constraints = Constraints.Builder()

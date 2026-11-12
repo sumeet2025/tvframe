@@ -16,6 +16,7 @@ import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.nostr.tvframe.TVFrameApp
+import com.nostr.tvframe.data.sync.SyncTrigger
 import com.nostr.tvframe.domain.model.UserPreferences
 import com.nostr.tvframe.ui.slideshow.SlideshowRenderer
 import com.nostr.tvframe.ui.theme.TVFrameTheme
@@ -110,7 +111,7 @@ class PhotoDreamService :
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_START)
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_RESUME)
         TVFrameApp.instance.applicationScope.launch {
-            TVFrameApp.instance.photoRepository.refreshEnabledSources()
+            TVFrameApp.instance.photoRepository.refreshEnabledSources(SyncTrigger.SCREENSAVER)
         }
     }
 

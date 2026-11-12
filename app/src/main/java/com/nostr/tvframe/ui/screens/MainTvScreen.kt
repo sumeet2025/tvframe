@@ -27,6 +27,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
@@ -53,6 +54,8 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.nostr.tvframe.BuildConfig
 import com.nostr.tvframe.R
+import com.nostr.tvframe.data.sync.SyncPhase
+import com.nostr.tvframe.data.sync.SyncStatus
 import com.nostr.tvframe.domain.model.FontFamilyOption
 import com.nostr.tvframe.domain.model.OrientationFilter
 import com.nostr.tvframe.domain.model.OverlayAnchor
@@ -104,6 +107,8 @@ fun MainTvScreen(
     val usbVolumes by viewModel.detectedUsbVolumes.collectAsState()
     val cacheUsageMb by viewModel.cacheUsageMb.collectAsState()
     val isRefreshing by viewModel.isRefreshing.collectAsState()
+    val syncStatus by viewModel.syncStatus.collectAsState()
+    val syncScheduleLine by viewModel.syncScheduleLine.collectAsState()
     val statusToast by viewModel.statusToast.collectAsState()
     val usbBanner by viewModel.usbBannerMessage.collectAsState()
 
@@ -256,6 +261,8 @@ fun MainTvScreen(
                         playlist = playlist,
                         selectedGalleryIds = selectedGalleryIds,
                         isRefreshing = isRefreshing,
+                        syncStatus = syncStatus,
+                        syncScheduleLine = syncScheduleLine,
                         onSelectCategory = { cat, customQuery, orientation, resFloor ->
                             viewModel.selectWikimediaCategory(cat, customQuery, orientation, resFloor)
                         },
@@ -320,6 +327,8 @@ private fun GalleryAndFiltersTab(
     playlist: List<PhotoItem>,
     selectedGalleryIds: Set<String>,
     isRefreshing: Boolean,
+    syncStatus: SyncStatus,
+    syncScheduleLine: String,
     onSelectCategory: (WikimediaCategoryFilter?, String?, OrientationFilter?, ResolutionFloor?) -> Unit,
     onSelectDisplayMode: (PhotoDisplayMode) -> Unit,
     onRefresh: () -> Unit,
@@ -453,6 +462,10 @@ private fun GalleryAndFiltersTab(
                 onClick = onDeleteAllNonFavorites
             )
         }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        SyncStatusCard(status = syncStatus, scheduleLine = syncScheduleLine)
 
         Spacer(modifier = Modifier.height(10.dp))
 
@@ -1491,6 +1504,75 @@ private fun PhotoGridCard(
                 text = photo.photographerName,
                 color = TvTextSecondary,
                 fontSize = 9.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
+/**
+ * Always-visible sync status: what is happening right now ("Downloading 12 of 30"), the result
+ * of the last run (including "no new photos" and errors), and when the next automatic sync runs.
+ */
+@Composable
+private fun SyncStatusCard(status: SyncStatus, scheduleLine: String) {
+    val (icon, color) = when (status.phase) {
+        SyncPhase.IDLE -> "⟳" to TvTextSecondary
+        SyncPhase.SEARCHING, SyncPhase.SCANNING_LOCAL, SyncPhase.DOWNLOADING -> "⏳" to TvFocusAccent
+        SyncPhase.DONE -> (if (status.newPhotos > 0) "✓" else "ℹ") to TvTextPrimary
+        SyncPhase.ERROR -> "⚠" to TvFavoriteCoral
+    }
+    val headline = when {
+        status.phase == SyncPhase.IDLE && status.message.isBlank() -> "Ready. Press ⟳ Sync New to download photos."
+        status.isRunning && status.queryLabel.isNotBlank() -> "${status.message}  ·  ${status.queryLabel}"
+        else -> status.message
+    }
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(TvSurfaceCard, RoundedCornerShape(8.dp))
+            .border(
+                1.dp,
+                if (status.phase == SyncPhase.ERROR) TvFavoriteCoral else Color(0xFF334155),
+                RoundedCornerShape(8.dp)
+            )
+            .padding(horizontal = 14.dp, vertical = 8.dp)
+    ) {
+        Text(
+            text = "$icon  $headline",
+            color = color,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+        if (status.phase == SyncPhase.DOWNLOADING && status.progressTotal > 0) {
+            Spacer(modifier = Modifier.height(5.dp))
+            LinearProgressIndicator(
+                progress = { status.progressDone.toFloat() / status.progressTotal.toFloat() },
+                color = TvFocusAccent,
+                trackColor = Color(0xFF334155),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(4.dp)
+            )
+        } else if (status.isRunning) {
+            Spacer(modifier = Modifier.height(5.dp))
+            LinearProgressIndicator(
+                color = TvFocusAccent,
+                trackColor = Color(0xFF334155),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(4.dp)
+            )
+        }
+        if (scheduleLine.isNotBlank()) {
+            Spacer(modifier = Modifier.height(3.dp))
+            Text(
+                text = scheduleLine,
+                color = TvTextSecondary,
+                fontSize = 11.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
