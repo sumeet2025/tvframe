@@ -1518,6 +1518,12 @@ private fun PhotoGridCard(
             .aspectRatio(16f / 9f)
             .tvFocusableCard(cornerRadiusDp = 10)
             .clip(RoundedCornerShape(10.dp))
+            // Favorites keep their normal place in the Gallery; a coral outline and the ♥ badge
+            // mark them.
+            .then(
+                if (photo.isFavorite) Modifier.border(2.dp, TvFavoriteCoral, RoundedCornerShape(10.dp))
+                else Modifier
+            )
             .clickable { onPrimaryClick() }
     ) {
         AsyncImage(

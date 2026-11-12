@@ -14,10 +14,12 @@ import kotlinx.coroutines.flow.Flow
 interface PhotoDao {
 
     /**
-     * Ordered by stable keys only. Never order by lastAccessedEpochMs here: the slideshow touches
-     * that column on every slide, which used to reshuffle the list underneath it.
+     * Newest first, ordered by stable keys only. Favorites are NOT pinned to the top: they stay in
+     * their normal place (with a ♥ badge) and the Favorites tab shows them together. Never order
+     * by lastAccessedEpochMs or isFavorite here: the slideshow touches lastAccessed on every slide,
+     * and favoriting a photo would move it, both of which reshuffle the list underneath the show.
      */
-    @Query("SELECT * FROM photos ORDER BY isFavorite DESC, createdAtEpochMs DESC, id ASC")
+    @Query("SELECT * FROM photos ORDER BY createdAtEpochMs DESC, id ASC")
     fun observeAllPhotos(): Flow<List<PhotoEntity>>
 
     @Query("SELECT * FROM photos WHERE sourceType IN (:allowedSources) ORDER BY lastAccessedEpochMs DESC")
