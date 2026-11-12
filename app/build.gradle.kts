@@ -143,4 +143,7 @@ dependencies {
 
     // ZXing QR Code Generator
     implementation(libs.zxing.core)
+
+    // Unit tests (pure Kotlin logic: category mixing, sync paging)
+    testImplementation(libs.junit)
 }

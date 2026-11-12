@@ -176,19 +176,39 @@ class MainViewModel : ViewModel() {
 
     fun hasAllFilesAccess(): Boolean = usbSource.hasAllFilesAccessPermission()
 
-    fun selectWikimediaCategory(
-        category: WikimediaCategoryFilter? = null,
-        customQuery: String? = null,
+    /**
+     * Turns a category on or off (several can be selected; a sync mixes them). Turning on
+     * "Custom Search" with an empty box only reveals the box; the sync starts on Search.
+     */
+    fun toggleCategory(category: WikimediaCategoryFilter) {
+        viewModelScope.launch {
+            val before = prefsRepo.userPreferencesFlow.first()
+            val after = prefsRepo.toggleCategory(category)
+            if (after == before.activeCategories) {
+                _statusToast.value = "Keep at least one category selected."
+                return@launch
+            }
+            val onlyRevealedSearchBox = category == WikimediaCategoryFilter.CUSTOM_QUERY &&
+                category in after && before.customSearchQuery.isBlank()
+            if (!onlyRevealedSearchBox) refreshSources(SyncTrigger.FILTER_CHANGE)
+        }
+    }
+
+    fun submitCustomSearch(text: String) {
+        viewModelScope.launch {
+            prefsRepo.updateWikimediaFilter(customQuery = text.trim())
+            prefsRepo.ensureCategorySelected(WikimediaCategoryFilter.CUSTOM_QUERY)
+            refreshSources(SyncTrigger.FILTER_CHANGE)
+        }
+    }
+
+    fun updatePhotoFilters(
         orientation: OrientationFilter? = null,
         resolutionFloor: ResolutionFloor? = null
     ) {
         viewModelScope.launch {
-            prefsRepo.updateWikimediaFilter(category, customQuery, orientation, resolutionFloor)
-            val updated = prefsRepo.userPreferencesFlow.first()
-            // Picking "Custom Search" with an empty box just reveals the search box; nothing to sync yet.
-            val waitingForSearchText = updated.activeCategory == WikimediaCategoryFilter.CUSTOM_QUERY &&
-                updated.customSearchQuery.isBlank()
-            if (!waitingForSearchText) refreshSources(SyncTrigger.FILTER_CHANGE)
+            prefsRepo.updateWikimediaFilter(orientation = orientation, resolutionFloor = resolutionFloor)
+            refreshSources(SyncTrigger.FILTER_CHANGE)
         }
     }
 

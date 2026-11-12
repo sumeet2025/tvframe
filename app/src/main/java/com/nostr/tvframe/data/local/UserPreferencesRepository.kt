@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.nostr.tvframe.domain.model.FontFamilyOption
 import com.nostr.tvframe.domain.model.OrientationFilter
@@ -37,7 +38,9 @@ class UserPreferencesRepository(private val context: Context) {
         val ENABLE_WIKIMEDIA = booleanPreferencesKey("enable_wikimedia")
         val ENABLE_USB_SOURCE = booleanPreferencesKey("enable_usb_source")
         val ENABLE_SMB_SOURCE = booleanPreferencesKey("enable_smb_source")
+        /** Pre-1.3.0 single category. Only read as a fallback when [ACTIVE_CATEGORIES] is missing. */
         val ACTIVE_CATEGORY = stringPreferencesKey("active_category")
+        val ACTIVE_CATEGORIES = stringSetPreferencesKey("active_categories")
         val CUSTOM_SEARCH_QUERY = stringPreferencesKey("custom_search_query")
         val ORIENTATION_FILTER = stringPreferencesKey("orientation_filter")
         val RESOLUTION_FLOOR = stringPreferencesKey("resolution_floor")
@@ -80,7 +83,7 @@ class UserPreferencesRepository(private val context: Context) {
             enableWikimedia = prefs[Keys.ENABLE_WIKIMEDIA] ?: true,
             enableUsbSource = prefs[Keys.ENABLE_USB_SOURCE] ?: false,
             enableSmbSource = prefs[Keys.ENABLE_SMB_SOURCE] ?: false,
-            activeCategory = enumOrDefault(prefs[Keys.ACTIVE_CATEGORY], WikimediaCategoryFilter.PICTURES_OF_THE_DAY),
+            activeCategories = readActiveCategories(prefs),
             customSearchQuery = prefs[Keys.CUSTOM_SEARCH_QUERY] ?: "",
             orientationFilter = enumOrDefault(prefs[Keys.ORIENTATION_FILTER], OrientationFilter.LANDSCAPE_ONLY),
             resolutionFloor = enumOrDefault(prefs[Keys.RESOLUTION_FLOOR], ResolutionFloor.FHD_1080P),
@@ -145,17 +148,53 @@ class UserPreferencesRepository(private val context: Context) {
     }
 
     suspend fun updateWikimediaFilter(
-        category: WikimediaCategoryFilter? = null,
         customQuery: String? = null,
         orientation: OrientationFilter? = null,
         resolutionFloor: ResolutionFloor? = null
     ) {
         context.dataStore.edit { prefs ->
-            category?.let { prefs[Keys.ACTIVE_CATEGORY] = it.name }
             customQuery?.let { prefs[Keys.CUSTOM_SEARCH_QUERY] = it }
             orientation?.let { prefs[Keys.ORIENTATION_FILTER] = it.name }
             resolutionFloor?.let { prefs[Keys.RESOLUTION_FLOOR] = it.name }
         }
+    }
+
+    /**
+     * Turns a category on or off. The last selected category can't be turned off, so a sync
+     * always has something to search. Returns the new selection.
+     */
+    suspend fun toggleCategory(category: WikimediaCategoryFilter): Set<WikimediaCategoryFilter> {
+        var result = emptySet<WikimediaCategoryFilter>()
+        context.dataStore.edit { prefs ->
+            val current = readActiveCategories(prefs)
+            val next = when {
+                category !in current -> current + category
+                current.size > 1 -> current - category
+                else -> current
+            }
+            prefs[Keys.ACTIVE_CATEGORIES] = next.map { it.name }.toSet()
+            result = next
+        }
+        return result
+    }
+
+    /** Makes sure [category] is selected (used when submitting a custom search). */
+    suspend fun ensureCategorySelected(category: WikimediaCategoryFilter) {
+        context.dataStore.edit { prefs ->
+            prefs[Keys.ACTIVE_CATEGORIES] = (readActiveCategories(prefs) + category).map { it.name }.toSet()
+        }
+    }
+
+    /**
+     * Reads the multi-select categories, migrating from the old single `active_category` value
+     * the first time (it is written back as a set as soon as the user changes the selection).
+     */
+    private fun readActiveCategories(prefs: Preferences): Set<WikimediaCategoryFilter> {
+        val stored = prefs[Keys.ACTIVE_CATEGORIES]
+            ?.mapNotNull { name -> WikimediaCategoryFilter.entries.firstOrNull { it.name == name } }
+            ?.toSet()
+        if (!stored.isNullOrEmpty()) return stored
+        return setOf(enumOrDefault(prefs[Keys.ACTIVE_CATEGORY], WikimediaCategoryFilter.PICTURES_OF_THE_DAY))
     }
 
     suspend fun updateOverlayAnchors(textAnchor: OverlayAnchor, qrAnchor: OverlayAnchor) {

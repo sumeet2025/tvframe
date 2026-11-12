@@ -164,7 +164,8 @@ data class UserPreferences(
     val enableWikimedia: Boolean = true,
     val enableUsbSource: Boolean = false,
     val enableSmbSource: Boolean = false,
-    val activeCategory: WikimediaCategoryFilter = WikimediaCategoryFilter.PICTURES_OF_THE_DAY,
+    /** One or more categories; a sync mixes results from all of them. Never empty. */
+    val activeCategories: Set<WikimediaCategoryFilter> = setOf(WikimediaCategoryFilter.PICTURES_OF_THE_DAY),
     val customSearchQuery: String = "",
     val orientationFilter: OrientationFilter = OrientationFilter.LANDSCAPE_ONLY,
     val resolutionFloor: ResolutionFloor = ResolutionFloor.FHD_1080P,

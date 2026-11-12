@@ -51,6 +51,8 @@ data class WikimediaPagesContainer(
 data class WikimediaPageDto(
     val pageid: Long = 0L,
     val title: String = "",
+    /** Rank in the search results (the pages map itself is unordered). */
+    val index: Int = 0,
     val categories: List<WikimediaCategoryTag>? = null,
     val imageinfo: List<WikimediaImageInfoDto>? = null
 )
