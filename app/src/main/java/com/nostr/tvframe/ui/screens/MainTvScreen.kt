@@ -268,8 +268,10 @@ fun MainTvScreen(
                         syncStatus = syncStatus,
                         syncScheduleLine = syncScheduleLine,
                         activeQueryLabel = activeQueryLabel,
-                        onSelectCategory = { cat, customQuery, orientation, resFloor ->
-                            viewModel.selectWikimediaCategory(cat, customQuery, orientation, resFloor)
+                        onToggleCategory = { viewModel.toggleCategory(it) },
+                        onSubmitCustomSearch = { viewModel.submitCustomSearch(it) },
+                        onSelectFilters = { orientation, resFloor ->
+                            viewModel.updatePhotoFilters(orientation, resFloor)
                         },
                         onSelectDisplayMode = { viewModel.updatePhotoDisplayMode(it) },
                         onRefresh = { viewModel.refreshSources() },
@@ -335,7 +337,9 @@ private fun GalleryAndFiltersTab(
     syncStatus: SyncStatus,
     syncScheduleLine: String,
     activeQueryLabel: String,
-    onSelectCategory: (WikimediaCategoryFilter?, String?, OrientationFilter?, ResolutionFloor?) -> Unit,
+    onToggleCategory: (WikimediaCategoryFilter) -> Unit,
+    onSubmitCustomSearch: (String) -> Unit,
+    onSelectFilters: (OrientationFilter?, ResolutionFloor?) -> Unit,
     onSelectDisplayMode: (PhotoDisplayMode) -> Unit,
     onRefresh: () -> Unit,
     onToggleFavorite: (PhotoItem) -> Unit,
@@ -351,19 +355,27 @@ private fun GalleryAndFiltersTab(
     var isSelectionMode by remember { mutableStateOf(false) }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        // Row 1: Wikimedia Topic Presets
+        // Row 1: Wikimedia Topic Presets (multi-select)
         LazyRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             contentPadding = PaddingValues(horizontal = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth()
         ) {
+            item {
+                Text(
+                    text = "Categories (pick one or more):",
+                    color = TvTextSecondary,
+                    fontSize = 12.sp
+                )
+            }
             items(WikimediaCategoryFilter.entries) { filter ->
-                val isSelected = prefs.activeCategory == filter
+                val isSelected = filter in prefs.activeCategories
                 TvActionButton(
-                    label = if (isSelected) "✓ ${filter.displayName}" else filter.displayName,
+                    label = if (isSelected) "☑ ${filter.displayName}" else "☐ ${filter.displayName}",
                     accentColor = if (isSelected) TvFocusAccent else TvTextSecondary,
-                    // Presets only change the category; they never touch the custom search text.
-                    onClick = { onSelectCategory(filter, null, null, null) }
+                    // Toggles this category on/off; presets never touch the custom search text.
+                    onClick = { onToggleCategory(filter) }
                 )
             }
         }
@@ -392,7 +404,7 @@ private fun GalleryAndFiltersTab(
                 TvActionButton(
                     label = if (selected) "📐 ✓ ${floor.label}" else "📐 ${floor.label}",
                     accentColor = if (selected) TvFocusAccent else TvTextSecondary,
-                    onClick = { onSelectCategory(null, null, null, floor) }
+                    onClick = { onSelectFilters(null, floor) }
                 )
             }
 
@@ -402,12 +414,24 @@ private fun GalleryAndFiltersTab(
                 TvActionButton(
                     label = if (selected) "↔ ✓ ${orientation.label}" else "↔ ${orientation.label}",
                     accentColor = if (selected) TvFocusAccent else TvTextSecondary,
-                    onClick = { onSelectCategory(null, null, orientation, null) }
+                    onClick = { onSelectFilters(orientation, null) }
                 )
             }
         }
 
         Spacer(modifier = Modifier.height(8.dp))
+
+        Text(
+            text = "Downloading: $activeQueryLabel",
+            color = TvTextPrimary,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(horizontal = 4.dp)
+        )
+
+        Spacer(modifier = Modifier.height(6.dp))
 
         // Row 3: Custom Search + Refresh + Gallery Delete Controls
         Row(
@@ -417,10 +441,8 @@ private fun GalleryAndFiltersTab(
         ) {
             // The search box only exists while "Custom Search" is the selected category, so it is
             // never mistaken for something that affects the preset categories.
-            if (prefs.activeCategory == WikimediaCategoryFilter.CUSTOM_QUERY) {
-                val submitSearch = {
-                    onSelectCategory(WikimediaCategoryFilter.CUSTOM_QUERY, customSearchText.trim(), null, null)
-                }
+            if (WikimediaCategoryFilter.CUSTOM_QUERY in prefs.activeCategories) {
+                val submitSearch = { onSubmitCustomSearch(customSearchText) }
                 OutlinedTextField(
                     value = customSearchText,
                     onValueChange = { customSearchText = it },
@@ -444,16 +466,9 @@ private fun GalleryAndFiltersTab(
                     onClick = submitSearch
                 )
             } else {
-                Text(
-                    text = "Downloading: $activeQueryLabel",
-                    color = TvTextPrimary,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f)
-                )
+                Spacer(modifier = Modifier.weight(1f))
             }
+
 
             TvActionButton(
                 label = if (isRefreshing) "Syncing…" else "⟳ Sync New",

@@ -21,6 +21,7 @@ zxing = "3.5.3"
 workManager = "2.10.0"
 documentfile = "1.0.1"
 coroutines = "1.9.0"
+junit = "4.13.2"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -51,6 +52,7 @@ kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
 coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
 jcifs-ng = { group = "eu.agno3.jcifs", name = "jcifs-ng", version.ref = "jcifsNg" }
+junit = { group = "junit", name = "junit", version.ref = "junit" }
 zxing-core = { group = "com.google.zxing", name = "core", version.ref = "zxing" }
 
 [plugins]

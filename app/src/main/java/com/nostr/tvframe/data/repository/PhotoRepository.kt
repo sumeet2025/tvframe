@@ -16,6 +16,7 @@ import com.nostr.tvframe.domain.model.PhotoItem
 import com.nostr.tvframe.domain.model.PhotoSourceType
 import com.nostr.tvframe.domain.model.UserPreferences
 import com.nostr.tvframe.domain.model.WikimediaCategoryFilter
+import com.nostr.tvframe.data.sync.CategoryMix
 import com.nostr.tvframe.data.sync.SyncPhase
 import com.nostr.tvframe.data.sync.SyncReport
 import com.nostr.tvframe.data.sync.SyncStatusTracker
@@ -150,24 +151,28 @@ class PhotoRepository(
         var newPhotos = 0
         var wikimediaMatched = 0
         var wikimediaOffline = false
-        val customSearchMissing = prefs.activeCategory == WikimediaCategoryFilter.CUSTOM_QUERY &&
-            prefs.customSearchQuery.isBlank()
+        val categories = searchableCategories(prefs)
+        val customSearchMissing = categories.isEmpty() &&
+            WikimediaCategoryFilter.CUSTOM_QUERY in prefs.activeCategories
 
-        // 1. Wikimedia Commons
-        if (prefs.enableWikimedia && !customSearchMissing) {
+        // 1. Wikimedia Commons: one search per selected category, mixed together
+        if (prefs.enableWikimedia && categories.isNotEmpty()) {
             if (!isNetworkAvailable()) {
                 wikimediaOffline = true
             } else {
-                val query = buildEffectiveWikimediaQuery(prefs)
-                val response = wikimediaApi.searchCommonsImages(
-                    searchQuery = query,
-                    limit = 50,
-                    thumbnailWidth = prefs.resolutionFloor.minWidthPx.coerceAtLeast(1920)
-                )
-                val pages = response.query?.pages?.values.orEmpty()
-                val mapped = pages.mapNotNull { page ->
-                    WikimediaClient.mapDtoToEntity(page, prefs.activeCategory.name)
-                }.filter { entity -> matchesResolutionAndOrientation(entity, prefs) }
+                val perCategory = categories.map { category ->
+                    val response = wikimediaApi.searchCommonsImages(
+                        searchQuery = buildWikimediaQuery(category, prefs),
+                        limit = 50,
+                        thumbnailWidth = prefs.resolutionFloor.minWidthPx.coerceAtLeast(1920)
+                    )
+                    response.query?.pages?.values.orEmpty()
+                        .sortedBy { it.index } // keep Commons' relevance order
+                        .mapNotNull { page -> WikimediaClient.mapDtoToEntity(page, category.name) }
+                        .filter { entity -> matchesResolutionAndOrientation(entity, prefs) }
+                }
+                // The same photo can show up under two categories; ids are "wikimedia_<pageid>".
+                val mapped = CategoryMix.interleaveDistinct(perCategory, limit = 50) { it.id }
                     .map { entity -> entity.copy(isFavorite = entity.id in existingFavoritesIds) }
                 wikimediaMatched = mapped.size
 
@@ -220,7 +225,7 @@ class PhotoRepository(
             !prefs.enableWikimedia && !prefs.enableUsbSource && !prefs.enableSmbSource ->
                 "Nothing to sync: every photo source is turned off."
             prefs.enableWikimedia && customSearchMissing && newPhotos == 0 ->
-                "Custom Search is selected but the search box is empty. Type what you want to see and press Search."
+                "Only Custom Search is selected and the search box is empty. Type what you want to see and press Search."
             wikimediaOffline && newPhotos == 0 ->
                 "No internet connection. Showing photos already on this TV."
             newPhotos > 0 ->
@@ -282,14 +287,28 @@ class PhotoRepository(
         return meetsRes && meetsAspect
     }
 
-    /** Human-readable name of what the next sync will search for, e.g. "Landscapes". */
-    fun describeActiveQuery(prefs: UserPreferences): String =
-        if (prefs.activeCategory == WikimediaCategoryFilter.CUSTOM_QUERY) {
-            prefs.customSearchQuery.trim().takeIf { it.isNotEmpty() }
-                ?.let { "\u201C$it\u201D" }
-                ?: "Custom Search (type what you want to see)"
-        } else {
-            prefs.activeCategory.displayName
+    /**
+     * Human-readable name of what the next sync will search for, e.g. "Landscapes + Birds" or
+     * "Mountains + “Swiss Alps”".
+     */
+    fun describeActiveQuery(prefs: UserPreferences): String {
+        val parts = WikimediaCategoryFilter.entries
+            .filter { it in prefs.activeCategories }
+            .mapNotNull { category ->
+                if (category == WikimediaCategoryFilter.CUSTOM_QUERY) {
+                    prefs.customSearchQuery.trim().takeIf { it.isNotEmpty() }?.let { "\u201C$it\u201D" }
+                } else {
+                    category.displayName
+                }
+            }
+        return parts.joinToString(" + ").ifEmpty { "Custom Search (type what you want to see)" }
+    }
+
+    /** Selected categories that can actually be searched (Custom Search needs some text). */
+    private fun searchableCategories(prefs: UserPreferences): List<WikimediaCategoryFilter> =
+        WikimediaCategoryFilter.entries.filter { category ->
+            category in prefs.activeCategories &&
+                (category != WikimediaCategoryFilter.CUSTOM_QUERY || prefs.customSearchQuery.isNotBlank())
         }
 
     /**
@@ -387,11 +406,11 @@ class PhotoRepository(
         photoDao.touchPhotoAccessTime(photoId)
     }
 
-    private fun buildEffectiveWikimediaQuery(prefs: UserPreferences): String {
-        return if (prefs.activeCategory == WikimediaCategoryFilter.CUSTOM_QUERY) {
+    private fun buildWikimediaQuery(category: WikimediaCategoryFilter, prefs: UserPreferences): String {
+        return if (category == WikimediaCategoryFilter.CUSTOM_QUERY) {
             "${prefs.customSearchQuery.trim()} filetype:bitmap"
         } else {
-            prefs.activeCategory.commonsQuery
+            category.commonsQuery
         }
     }
 
