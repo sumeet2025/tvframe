@@ -165,7 +165,7 @@ data class UserPreferences(
     val enableUsbSource: Boolean = false,
     val enableSmbSource: Boolean = false,
     val activeCategory: WikimediaCategoryFilter = WikimediaCategoryFilter.PICTURES_OF_THE_DAY,
-    val customSearchQuery: String = "Alpine mountains sunset",
+    val customSearchQuery: String = "",
     val orientationFilter: OrientationFilter = OrientationFilter.LANDSCAPE_ONLY,
     val resolutionFloor: ResolutionFloor = ResolutionFloor.FHD_1080P,
     val photoDisplayMode: PhotoDisplayMode = PhotoDisplayMode.FULLSCREEN_CROP,

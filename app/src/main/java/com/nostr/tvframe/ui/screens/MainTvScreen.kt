@@ -45,7 +45,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Density
@@ -109,6 +112,7 @@ fun MainTvScreen(
     val isRefreshing by viewModel.isRefreshing.collectAsState()
     val syncStatus by viewModel.syncStatus.collectAsState()
     val syncScheduleLine by viewModel.syncScheduleLine.collectAsState()
+    val activeQueryLabel by viewModel.activeQueryLabel.collectAsState()
     val statusToast by viewModel.statusToast.collectAsState()
     val usbBanner by viewModel.usbBannerMessage.collectAsState()
 
@@ -263,6 +267,7 @@ fun MainTvScreen(
                         isRefreshing = isRefreshing,
                         syncStatus = syncStatus,
                         syncScheduleLine = syncScheduleLine,
+                        activeQueryLabel = activeQueryLabel,
                         onSelectCategory = { cat, customQuery, orientation, resFloor ->
                             viewModel.selectWikimediaCategory(cat, customQuery, orientation, resFloor)
                         },
@@ -329,6 +334,7 @@ private fun GalleryAndFiltersTab(
     isRefreshing: Boolean,
     syncStatus: SyncStatus,
     syncScheduleLine: String,
+    activeQueryLabel: String,
     onSelectCategory: (WikimediaCategoryFilter?, String?, OrientationFilter?, ResolutionFloor?) -> Unit,
     onSelectDisplayMode: (PhotoDisplayMode) -> Unit,
     onRefresh: () -> Unit,
@@ -356,7 +362,8 @@ private fun GalleryAndFiltersTab(
                 TvActionButton(
                     label = if (isSelected) "✓ ${filter.displayName}" else filter.displayName,
                     accentColor = if (isSelected) TvFocusAccent else TvTextSecondary,
-                    onClick = { onSelectCategory(filter, customSearchText, null, null) }
+                    // Presets only change the category; they never touch the custom search text.
+                    onClick = { onSelectCategory(filter, null, null, null) }
                 )
             }
         }
@@ -408,27 +415,45 @@ private fun GalleryAndFiltersTab(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            OutlinedTextField(
-                value = customSearchText,
-                onValueChange = { customSearchText = it },
-                label = { Text("Free-Text Search (e.g., Dolomites 4K, Swiss Alps, Kingfisher)") },
-                singleLine = true,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White,
-                    focusedBorderColor = TvFocusAccent,
-                    unfocusedBorderColor = Color(0xFF475569)
-                ),
-                modifier = Modifier.weight(1f)
-            )
-
-            TvActionButton(
-                label = "🔍 Search",
-                accentColor = TvFocusAccent,
-                onClick = {
-                    onSelectCategory(WikimediaCategoryFilter.CUSTOM_QUERY, customSearchText, null, null)
+            // The search box only exists while "Custom Search" is the selected category, so it is
+            // never mistaken for something that affects the preset categories.
+            if (prefs.activeCategory == WikimediaCategoryFilter.CUSTOM_QUERY) {
+                val submitSearch = {
+                    onSelectCategory(WikimediaCategoryFilter.CUSTOM_QUERY, customSearchText.trim(), null, null)
                 }
-            )
+                OutlinedTextField(
+                    value = customSearchText,
+                    onValueChange = { customSearchText = it },
+                    label = { Text("Custom search (e.g., Dolomites, Swiss Alps, Kingfisher)") },
+                    placeholder = { Text("Type what you want to see, then press Search") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                    keyboardActions = KeyboardActions(onSearch = { submitSearch() }),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        focusedBorderColor = TvFocusAccent,
+                        unfocusedBorderColor = Color(0xFF475569)
+                    ),
+                    modifier = Modifier.weight(1f)
+                )
+
+                TvActionButton(
+                    label = "🔍 Search",
+                    accentColor = TvFocusAccent,
+                    onClick = submitSearch
+                )
+            } else {
+                Text(
+                    text = "Downloading: $activeQueryLabel",
+                    color = TvTextPrimary,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
+            }
 
             TvActionButton(
                 label = if (isRefreshing) "Syncing…" else "⟳ Sync New",
