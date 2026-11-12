@@ -111,6 +111,12 @@ class SyncStatusTracker(private val context: Context) {
         )
     }
 
+    /** Shows a note in the status card (e.g. "press Sync to apply") unless a sync is running. */
+    fun hint(message: String) {
+        if (_status.value.isRunning) return
+        _status.value = SyncStatus(phase = SyncPhase.IDLE, message = message)
+    }
+
     suspend fun finish(trigger: SyncTrigger, newPhotos: Int, message: String, isError: Boolean) {
         _status.value = _status.value.copy(
             phase = if (isError) SyncPhase.ERROR else SyncPhase.DONE,

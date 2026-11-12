@@ -66,6 +66,9 @@ class PhotoRepository(
 
         /** Upper bound on search pages per category in one sync (8 × 50 = 400 results). */
         const val MAX_PAGES_PER_CATEGORY = 8
+
+        /** Opening the app or starting the screensaver only syncs if the last sync is older. */
+        const val AUTO_SYNC_MIN_INTERVAL_MS = 6L * 60 * 60 * 1000
     }
 
     /**
@@ -159,6 +162,18 @@ class PhotoRepository(
                 result
             }
         }
+
+    /**
+     * True when an automatic sync (app opened, screensaver started) should run: never synced,
+     * last sync more than 6 hours ago, or the gallery is empty. Keeps the app from pulling in a
+     * new batch every time it's opened.
+     */
+    suspend fun isAutoSyncDue(): Boolean = withContext(Dispatchers.IO) {
+        val last = syncStatusTracker.lastSync.first()
+        last == null ||
+            System.currentTimeMillis() - last.finishedAtEpochMs > AUTO_SYNC_MIN_INTERVAL_MS ||
+            photoDao.countPhotos() == 0
+    }
 
     private suspend fun runSync(prefs: UserPreferences, queryLabel: String): SyncReport {
         val existingFavoritesIds = photoDao.getAllFavoritesSync().map { it.id }.toSet()

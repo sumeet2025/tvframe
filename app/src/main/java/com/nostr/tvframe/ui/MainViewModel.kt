@@ -122,7 +122,9 @@ class MainViewModel : ViewModel() {
 
     init {
         refreshUsbAndCacheMetrics()
-        refreshSources(SyncTrigger.APP_START)
+        viewModelScope.launch {
+            if (repository.isAutoSyncDue()) refreshSources(SyncTrigger.APP_START)
+        }
     }
 
     fun updateUiScale(uiScale: UiScaleOption) {
@@ -151,7 +153,7 @@ class MainViewModel : ViewModel() {
      */
     fun refreshSources(trigger: SyncTrigger = SyncTrigger.MANUAL) {
         if (trigger == SyncTrigger.MANUAL && syncStatus.value.isRunning) return
-        if (trigger == SyncTrigger.FILTER_CHANGE) syncJob?.cancel()
+        if (trigger == SyncTrigger.FILTER_CHANGE || trigger == SyncTrigger.AFTER_CLEAR) syncJob?.cancel()
         syncJob = viewModelScope.launch {
             repository.refreshEnabledSources(trigger)
             refreshUsbAndCacheMetrics()
@@ -177,8 +179,8 @@ class MainViewModel : ViewModel() {
     fun hasAllFilesAccess(): Boolean = usbSource.hasAllFilesAccessPermission()
 
     /**
-     * Turns a category on or off (several can be selected; a sync mixes them). Turning on
-     * "Custom Search" with an empty box only reveals the box; the sync starts on Search.
+     * Turns a category on or off (several can be selected; a sync mixes them). This doesn't
+     * start a download by itself, so you can change several things and then press Sync once.
      */
     fun toggleCategory(category: WikimediaCategoryFilter) {
         viewModelScope.launch {
@@ -188,9 +190,7 @@ class MainViewModel : ViewModel() {
                 _statusToast.value = "Keep at least one category selected."
                 return@launch
             }
-            val onlyRevealedSearchBox = category == WikimediaCategoryFilter.CUSTOM_QUERY &&
-                category in after && before.customSearchQuery.isBlank()
-            if (!onlyRevealedSearchBox) refreshSources(SyncTrigger.FILTER_CHANGE)
+            showApplyHint()
         }
     }
 
@@ -212,6 +212,11 @@ class MainViewModel : ViewModel() {
         }
     }
 
+    private fun showApplyHint() {
+        val count = userPreferences.value.photosPerSync
+        app.syncStatusTracker.hint("Selection changed. Press ⟳ Sync $count New to download photos for it.")
+    }
+
     /** Remembered until changed; doesn't start a sync by itself. */
     fun updatePhotosPerSync(count: Int) {
         viewModelScope.launch { prefsRepo.updatePhotosPerSync(count) }
@@ -223,7 +228,7 @@ class MainViewModel : ViewModel() {
     ) {
         viewModelScope.launch {
             prefsRepo.updateWikimediaFilter(orientation = orientation, resolutionFloor = resolutionFloor)
-            refreshSources(SyncTrigger.FILTER_CHANGE)
+            showApplyHint()
         }
     }
 
@@ -280,8 +285,10 @@ class MainViewModel : ViewModel() {
         viewModelScope.launch {
             repository.deleteAllNonFavoritePhotos()
             _selectedGalleryIds.value = emptySet()
-            _statusToast.value = "Cleared all non-favorite downloaded photos."
             refreshUsbAndCacheMetrics()
+            // Start refilling right away; the status card shows progress. Seen history is kept,
+            // so this brings new photos rather than the ones just cleared.
+            refreshSources(SyncTrigger.AFTER_CLEAR)
         }
     }
 
@@ -389,7 +396,10 @@ class MainViewModel : ViewModel() {
     ) {
         viewModelScope.launch {
             prefsRepo.updateSources(enableWikimedia, enableUsb, enableSmb, favoritesOnlyScreensaver)
-            refreshSources(SyncTrigger.FILTER_CHANGE)
+            // Only a source being switched on has anything new to fetch.
+            if (enableWikimedia == true || enableUsb == true || enableSmb == true) {
+                refreshSources(SyncTrigger.FILTER_CHANGE)
+            }
         }
     }
 
