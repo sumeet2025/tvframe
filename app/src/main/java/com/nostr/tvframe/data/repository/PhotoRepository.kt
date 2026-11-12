@@ -5,6 +5,9 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import com.nostr.tvframe.data.local.PhotoDao
 import com.nostr.tvframe.data.local.PhotoEntity
+import com.nostr.tvframe.data.local.SeenHistoryDao
+import com.nostr.tvframe.data.local.SeenPhotoEntity
+import com.nostr.tvframe.data.local.SyncCursorEntity
 import com.nostr.tvframe.data.local.UserPreferencesRepository
 import com.nostr.tvframe.data.remote.WikimediaApiService
 import com.nostr.tvframe.data.remote.WikimediaClient
@@ -46,6 +49,7 @@ import java.io.File
 class PhotoRepository(
     private val context: Context,
     private val photoDao: PhotoDao,
+    private val seenHistoryDao: SeenHistoryDao,
     private val wikimediaApi: WikimediaApiService,
     private val usbStorageDataSource: UsbStorageDataSource,
     private val smbNetworkDataSource: SmbNetworkDataSource,
@@ -174,12 +178,17 @@ class PhotoRepository(
                 val (screenWidthPx, _) = DisplaySize.screenPx(context)
                 val thumbWidth = SyncMath.thumbnailWidthFor(prefs.resolutionFloor.minWidthPx, screenWidthPx)
                 val alreadyStored = HashSet<String>()
+                val alreadySeen = HashSet<String>()
                 val target = prefs.photosPerSync
+                // Each search continues where the previous sync left off.
+                val queryKeys = categories.associateWith { buildWikimediaQuery(it, prefs) }
+                val savedCursors = seenHistoryDao.cursorsFor(queryKeys.values.toList())
+                    .associate { it.queryKey to it.nextOffset }
                 val collected = PagedCollector.collect(
                     categories = categories,
                     target = target,
                     maxPagesPerCategory = MAX_PAGES_PER_CATEGORY,
-                    startOffset = { 0 },
+                    startOffset = { category -> savedCursors[queryKeys.getValue(category)] ?: 0 },
                     fetchPage = { category, offset ->
                         val response = wikimediaApi.searchCommonsImages(
                             searchQuery = buildWikimediaQuery(category, prefs),
@@ -191,11 +200,13 @@ class PhotoRepository(
                             .sortedBy { it.index } // keep Commons' relevance order
                             .mapNotNull { page -> WikimediaClient.mapDtoToEntity(page, category.name) }
                             .filter { entity -> matchesResolutionAndOrientation(entity, prefs) }
-                        alreadyStored += existingIds(entities.map { it.id })
+                        val ids = entities.map { it.id }
+                        alreadyStored += existingIds(ids)
+                        alreadySeen += seenIds(ids)
                         SearchPage(entities, response.continuation?.gsroffset)
                     },
-                    // Only photos that aren't in the gallery yet count toward the target.
-                    isWanted = { entity -> entity.id !in alreadyStored },
+                    // Only photos that aren't in the gallery and were never downloaded before count.
+                    isWanted = { entity -> entity.id !in alreadyStored && entity.id !in alreadySeen },
                     // The same photo can show up under two categories; ids are "wikimedia_<pageid>".
                     key = { it.id },
                     onPage = { scanned ->
@@ -204,7 +215,12 @@ class PhotoRepository(
                         }
                     }
                 )
-                wikimediaMatched = collected.wantedFound + alreadyStored.size
+                seenHistoryDao.saveCursors(
+                    collected.resumeOffsets.map { (category, offset) ->
+                        SyncCursorEntity(queryKey = queryKeys.getValue(category), nextOffset = offset)
+                    }
+                )
+                wikimediaMatched = collected.wantedFound + (alreadyStored + alreadySeen).size
                 val fresh = collected.picked.map { entity ->
                     entity.copy(isFavorite = entity.id in existingFavoritesIds)
                 }
@@ -264,8 +280,8 @@ class PhotoRepository(
                 "No photos matched $queryLabel at ${prefs.resolutionFloor.label} or higher, " +
                     "${prefs.orientationFilter.label}. Try another category or a lower resolution."
             else ->
-                "No new photos. Everything that matched is already in your gallery. " +
-                    "Try another category or a different minimum resolution."
+                "No new photos. Everything that matched is already in your gallery or was " +
+                    "downloaded before. Try another category, or use Reset seen history."
         }
         return SyncReport(newPhotos = newPhotos, queryLabel = queryLabel, message = message)
     }
@@ -298,9 +314,25 @@ class PhotoRepository(
                 .build()
             runCatching { imageLoader.execute(request) }
             upsertPreservingLocalState(listOf(entity))
+            seenHistoryDao.markSeen(listOf(SeenPhotoEntity(entity.id)))
         }
         syncStatusTracker.update { it.copy(progressDone = total, progressTotal = total) }
         return total
+    }
+
+    private suspend fun seenIds(ids: List<String>): Set<String> =
+        ids.distinct().chunked(500).flatMap { seenHistoryDao.seenAmong(it) }.toSet()
+
+    /** Number of photos in the seen history (shown next to "Reset seen history"). */
+    val seenCountFlow: Flow<Int> = seenHistoryDao.observeSeenCount()
+
+    /**
+     * Forgets which photos were downloaded before and where each search left off, so the next
+     * syncs can bring back photos you've already had. Photos in the gallery are not affected.
+     */
+    suspend fun resetSeenHistory() = withContext(Dispatchers.IO) {
+        seenHistoryDao.clearSeen()
+        seenHistoryDao.clearCursors()
     }
 
     private suspend fun existingIds(ids: List<String>): Set<String> =

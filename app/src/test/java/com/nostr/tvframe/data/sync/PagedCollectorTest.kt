@@ -82,4 +82,22 @@ class PagedCollectorTest {
         assertEquals(listOf("a-7", "a-8"), result.picked)
         assertEquals(5, result.resumeOffsets["a"]) // a-9 on the same page is still unused
     }
+
+    @Test
+    fun wrapsAroundOnceWhenResumingNearTheEnd() = runBlocking {
+        val calls = mutableListOf<String>()
+        val result = PagedCollector.collect(
+            categories = listOf("a"),
+            target = 4,
+            maxPagesPerCategory = 10,
+            startOffset = { 10 },
+            fetchPage = { c, o -> fakeSearch(mapOf("a" to 12), calls = calls)(c, o) },
+            isWanted = { it.substringAfter('-').toInt() in setOf(1, 3, 11) },
+            key = { it }
+        )
+        assertEquals(listOf("a-11", "a-1", "a-3"), result.picked)
+        // 10 -> end -> wrap to 0 -> 5 -> stops before passing the original start (10)
+        assertEquals(listOf("a@10", "a@0", "a@5"), calls)
+        assertEquals(0, result.resumeOffsets["a"])
+    }
 }

@@ -114,6 +114,7 @@ fun MainTvScreen(
     val syncStatus by viewModel.syncStatus.collectAsState()
     val syncScheduleLine by viewModel.syncScheduleLine.collectAsState()
     val activeQueryLabel by viewModel.activeQueryLabel.collectAsState()
+    val seenCount by viewModel.seenCount.collectAsState()
     val statusToast by viewModel.statusToast.collectAsState()
     val usbBanner by viewModel.usbBannerMessage.collectAsState()
 
@@ -284,6 +285,8 @@ fun MainTvScreen(
                         onClearGallerySelect = { viewModel.clearGallerySelection() },
                         onDeleteSelectedGallery = { viewModel.deleteSelectedGalleryPhotos() },
                         onDeleteAllNonFavorites = { viewModel.deleteAllNonFavoriteGalleryPhotos() },
+                        seenCount = seenCount,
+                        onResetSeenHistory = { viewModel.resetSeenHistory() },
                         onLaunchSlideshow = { isFullscreenSlideshowActive = true }
                     )
 
@@ -352,6 +355,8 @@ private fun GalleryAndFiltersTab(
     onClearGallerySelect: () -> Unit,
     onDeleteSelectedGallery: () -> Unit,
     onDeleteAllNonFavorites: () -> Unit,
+    seenCount: Int,
+    onResetSeenHistory: () -> Unit,
     onLaunchSlideshow: () -> Unit
 ) {
     var customSearchText by remember(prefs.customSearchQuery) { mutableStateOf(prefs.customSearchQuery) }
@@ -541,6 +546,13 @@ private fun GalleryAndFiltersTab(
                 label = "🗑 Clear Non-Favorites",
                 accentColor = TvFavoriteCoral,
                 onClick = onDeleteAllNonFavorites
+            )
+
+            // Syncs skip photos downloaded before (even after clearing); this forgets them.
+            TvActionButton(
+                label = "↺ Reset seen history ($seenCount)",
+                accentColor = TvTextSecondary,
+                onClick = onResetSeenHistory
             )
         }
 

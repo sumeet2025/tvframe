@@ -77,6 +77,7 @@ class TVFrameApp : Application(), ImageLoaderFactory {
         photoRepository = PhotoRepository(
             context = this,
             photoDao = database.photoDao(),
+            seenHistoryDao = database.seenHistoryDao(),
             wikimediaApi = WikimediaClient.apiService,
             usbStorageDataSource = usbStorageDataSource,
             smbNetworkDataSource = smbNetworkDataSource,
