@@ -83,6 +83,8 @@ class PhotoDreamService :
                         preferences = prefs,
                         isDreamServiceMode = true,
                         usbStatusBanner = usbBanner,
+                        // "Favorites (Random)": a fresh shuffle every time the screensaver starts.
+                        shuffle = prefs.screensaverMode.shuffled,
                         onToggleFavorite = { photo ->
                             app.applicationScope.launch {
                                 app.photoRepository.toggleFavorite(photo.id)

@@ -78,14 +78,15 @@ class PhotoRepository(
     /**
      * Reactive stream of active photos for the in-app gallery and slideshow, matching the user's
      * enabled sources, resolution floor, and aspect ratio / orientation rules.
-     * The "Screensaver: Favorites Only" setting does NOT apply here.
+     * The screensaver mode setting does NOT apply here.
      */
     val activePlaylistFlow: Flow<List<PhotoItem>> = playlistFlow(forScreensaver = false)
 
     /**
      * Playlist for the system screensaver (PhotoDreamService). Same as [activePlaylistFlow], except
-     * that "Screensaver: Favorites Only" restricts it to favorites (falling back to the normal
-     * playlist when there are no favorites yet, so the screensaver never goes blank).
+     * that "Favorites Only" and "Favorites (Random)" restrict it to favorites (falling back to the
+     * normal playlist when there are no favorites yet, so the screensaver never goes blank). The
+     * shuffling for "Favorites (Random)" happens in the slideshow, so it's fresh on every start.
      */
     val screensaverPlaylistFlow: Flow<List<PhotoItem>> = playlistFlow(forScreensaver = true)
 
@@ -93,7 +94,7 @@ class PhotoRepository(
         photoDao.observeAllPhotos(),
         preferencesRepository.userPreferencesFlow
     ) { entities, prefs ->
-        if (forScreensaver && prefs.favoritesOnlyInScreensaver) {
+        if (forScreensaver && prefs.screensaverMode.favoritesOnly) {
             val favorites = entities.filter { it.isFavorite }
             if (favorites.isNotEmpty()) {
                 return@combine favorites.map { it.toDomain() }

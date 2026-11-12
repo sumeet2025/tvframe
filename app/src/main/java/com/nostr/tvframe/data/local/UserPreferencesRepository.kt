@@ -17,6 +17,7 @@ import com.nostr.tvframe.domain.model.OverlayAnchor
 import com.nostr.tvframe.domain.model.PhotoDisplayMode
 import com.nostr.tvframe.domain.model.QrColorTheme
 import com.nostr.tvframe.domain.model.ResolutionFloor
+import com.nostr.tvframe.domain.model.ScreensaverMode
 import com.nostr.tvframe.domain.model.SmbAuthMode
 import com.nostr.tvframe.domain.model.TextColorPreset
 import com.nostr.tvframe.domain.model.TextContrastMode
@@ -48,7 +49,9 @@ class UserPreferencesRepository(private val context: Context) {
         val RESOLUTION_FLOOR = stringPreferencesKey("resolution_floor")
         val PHOTOS_PER_SYNC = intPreferencesKey("photos_per_sync")
         val PHOTO_DISPLAY_MODE = stringPreferencesKey("photo_display_mode")
+        /** Pre-1.3.1 switch. Read as a fallback when [SCREENSAVER_MODE] is missing, and kept in sync. */
         val FAVORITES_ONLY_SCREENSAVER = booleanPreferencesKey("favorites_only_screensaver")
+        val SCREENSAVER_MODE = stringPreferencesKey("screensaver_mode")
 
         val TEXT_ANCHOR = stringPreferencesKey("text_anchor")
         val QR_ANCHOR = stringPreferencesKey("qr_anchor")
@@ -93,7 +96,7 @@ class UserPreferencesRepository(private val context: Context) {
             photosPerSync = (prefs[Keys.PHOTOS_PER_SYNC] ?: DEFAULT_PHOTOS_PER_SYNC)
                 .takeIf { it in PHOTOS_PER_SYNC_OPTIONS } ?: DEFAULT_PHOTOS_PER_SYNC,
             photoDisplayMode = enumOrDefault(prefs[Keys.PHOTO_DISPLAY_MODE], PhotoDisplayMode.FULLSCREEN_CROP),
-            favoritesOnlyInScreensaver = prefs[Keys.FAVORITES_ONLY_SCREENSAVER] ?: false,
+            screensaverMode = readScreensaverMode(prefs),
 
             textAnchor = enumOrDefault(prefs[Keys.TEXT_ANCHOR], OverlayAnchor.BOTTOM_LEFT),
             qrAnchor = enumOrDefault(prefs[Keys.QR_ANCHOR], OverlayAnchor.BOTTOM_RIGHT),
@@ -141,14 +144,31 @@ class UserPreferencesRepository(private val context: Context) {
     suspend fun updateSources(
         enableWikimedia: Boolean? = null,
         enableUsb: Boolean? = null,
-        enableSmb: Boolean? = null,
-        favoritesOnlyScreensaver: Boolean? = null
+        enableSmb: Boolean? = null
     ) {
         context.dataStore.edit { prefs ->
             enableWikimedia?.let { prefs[Keys.ENABLE_WIKIMEDIA] = it }
             enableUsb?.let { prefs[Keys.ENABLE_USB_SOURCE] = it }
             enableSmb?.let { prefs[Keys.ENABLE_SMB_SOURCE] = it }
-            favoritesOnlyScreensaver?.let { prefs[Keys.FAVORITES_ONLY_SCREENSAVER] = it }
+        }
+    }
+
+    suspend fun updateScreensaverMode(mode: ScreensaverMode) {
+        context.dataStore.edit { prefs ->
+            prefs[Keys.SCREENSAVER_MODE] = mode.name
+            // Keep the old switch meaningful in case an older version is installed again.
+            prefs[Keys.FAVORITES_ONLY_SCREENSAVER] = mode.favoritesOnly
+        }
+    }
+
+    private fun readScreensaverMode(prefs: Preferences): ScreensaverMode {
+        prefs[Keys.SCREENSAVER_MODE]?.let { name ->
+            ScreensaverMode.entries.firstOrNull { it.name == name }?.let { return it }
+        }
+        return if (prefs[Keys.FAVORITES_ONLY_SCREENSAVER] == true) {
+            ScreensaverMode.FAVORITES_ONLY
+        } else {
+            ScreensaverMode.ALL_SOURCES
         }
     }
 

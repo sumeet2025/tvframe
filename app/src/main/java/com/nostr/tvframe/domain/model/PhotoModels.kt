@@ -156,6 +156,23 @@ enum class SmbAuthMode(val label: String) {
     USER_PASSWORD("Username & Password")
 }
 
+/**
+ * What the system screensaver plays. Stored by name in DataStore ("screensaver_mode"); settings
+ * from 1.3.0 and earlier only had the "favorites only" switch and map to ALL_SOURCES or
+ * FAVORITES_ONLY.
+ */
+enum class ScreensaverMode(val label: String) {
+    ALL_SOURCES("All Sources"),
+    FAVORITES_ONLY("Favorites Only"),
+    FAVORITES_RANDOM("Favorites (Random)");
+
+    /** Only favorites are played (both favorites modes). */
+    val favoritesOnly: Boolean get() = this != ALL_SOURCES
+
+    /** Play order is shuffled, with no repeats until every photo has been shown. */
+    val shuffled: Boolean get() = this == FAVORITES_RANDOM
+}
+
 /** Choices offered by the "Photos per sync" picker. */
 val PHOTOS_PER_SYNC_OPTIONS = listOf(10, 20, 30, 40, 50)
 const val DEFAULT_PHOTOS_PER_SYNC = 30
@@ -179,7 +196,7 @@ data class UserPreferences(
     /** How many new photos one sync downloads (10–50). */
     val photosPerSync: Int = DEFAULT_PHOTOS_PER_SYNC,
     val photoDisplayMode: PhotoDisplayMode = PhotoDisplayMode.FULLSCREEN_CROP,
-    val favoritesOnlyInScreensaver: Boolean = false,
+    val screensaverMode: ScreensaverMode = ScreensaverMode.ALL_SOURCES,
 
     // Independent Anchoring
     val textAnchor: OverlayAnchor = OverlayAnchor.BOTTOM_LEFT,
