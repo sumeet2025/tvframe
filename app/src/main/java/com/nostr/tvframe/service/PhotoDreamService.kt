@@ -111,7 +111,8 @@ class PhotoDreamService :
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_START)
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_RESUME)
         TVFrameApp.instance.applicationScope.launch {
-            TVFrameApp.instance.photoRepository.refreshEnabledSources(SyncTrigger.SCREENSAVER)
+            val repo = TVFrameApp.instance.photoRepository
+            if (repo.isAutoSyncDue()) repo.refreshEnabledSources(SyncTrigger.SCREENSAVER)
         }
     }
 

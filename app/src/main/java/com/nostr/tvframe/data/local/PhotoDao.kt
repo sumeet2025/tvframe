@@ -26,6 +26,9 @@ interface PhotoDao {
     @Query("SELECT * FROM photos WHERE isFavorite = 1 ORDER BY createdAtEpochMs DESC, id ASC")
     fun observeFavoritePhotos(): Flow<List<PhotoEntity>>
 
+    @Query("SELECT COUNT(*) FROM photos")
+    suspend fun countPhotos(): Int
+
     @Query("SELECT * FROM photos WHERE id = :photoId LIMIT 1")
     suspend fun getPhotoById(photoId: String): PhotoEntity?
 
