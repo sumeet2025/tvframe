@@ -382,39 +382,61 @@ private fun GalleryAndFiltersTab(
 
         Spacer(modifier = Modifier.height(6.dp))
 
-        // Row 2: Full-Screen Fit Mode, Resolution (4K / 2K / 1080p), and Aspect Ratio Filters
+        // Row 2: Minimum resolution (single choice) and photo shape
         LazyRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             contentPadding = PaddingValues(horizontal = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth()
         ) {
-            // Display Mode (Full-Screen Fill vs Fit)
+            item {
+                Text(text = "Minimum resolution:", color = TvTextSecondary, fontSize = 12.sp)
+            }
+            items(ResolutionFloor.entries) { floor ->
+                val selected = prefs.resolutionFloor == floor
+                TvActionButton(
+                    label = if (selected) "◉ ${floor.longLabel}" else "○ ${floor.longLabel}",
+                    accentColor = if (selected) TvFocusAccent else TvTextSecondary,
+                    onClick = { onSelectFilters(null, floor) }
+                )
+            }
+
+            item {
+                Text(
+                    text = "Shape:",
+                    color = TvTextSecondary,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(start = 12.dp)
+                )
+            }
+            items(OrientationFilter.entries) { orientation ->
+                val selected = prefs.orientationFilter == orientation
+                TvActionButton(
+                    label = if (selected) "◉ ${orientation.label}" else "○ ${orientation.label}",
+                    accentColor = if (selected) TvFocusAccent else TvTextSecondary,
+                    onClick = { onSelectFilters(orientation, null) }
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(6.dp))
+
+        // Row 2b: How photos fill the screen
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(horizontal = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            item {
+                Text(text = "Display:", color = TvTextSecondary, fontSize = 12.sp)
+            }
             items(PhotoDisplayMode.entries) { mode ->
                 val selected = prefs.photoDisplayMode == mode
                 TvActionButton(
                     label = if (selected) "🖥 ✓ ${mode.label}" else "🖥 ${mode.label}",
                     accentColor = if (selected) TvZapGold else TvTextSecondary,
                     onClick = { onSelectDisplayMode(mode) }
-                )
-            }
-
-            // Resolution Floor (4K / 2K / 1080p / 720p)
-            items(ResolutionFloor.entries) { floor ->
-                val selected = prefs.resolutionFloor == floor
-                TvActionButton(
-                    label = if (selected) "📐 ✓ ${floor.label}" else "📐 ${floor.label}",
-                    accentColor = if (selected) TvFocusAccent else TvTextSecondary,
-                    onClick = { onSelectFilters(null, floor) }
-                )
-            }
-
-            // Orientation / Widescreen Filter
-            items(OrientationFilter.entries) { orientation ->
-                val selected = prefs.orientationFilter == orientation
-                TvActionButton(
-                    label = if (selected) "↔ ✓ ${orientation.label}" else "↔ ${orientation.label}",
-                    accentColor = if (selected) TvFocusAccent else TvTextSecondary,
-                    onClick = { onSelectFilters(orientation, null) }
                 )
             }
         }
@@ -513,7 +535,7 @@ private fun GalleryAndFiltersTab(
         if (playlist.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(
-                    text = "No photos in playlist for this filter. Click '⟳ Sync New' or lower the resolution filter (e.g., from 4K to 2K/1080p).",
+                    text = "No photos in playlist for this filter. Click '⟳ Sync New' or pick a lower minimum resolution (e.g., 1080p instead of 4K).",
                     color = TvTextSecondary,
                     fontSize = 15.sp
                 )
