@@ -250,7 +250,9 @@ data class PhotoItem(
     val height: Int,
     val isFavorite: Boolean,
     val lastAccessedEpochMs: Long,
-    val fileSizeBytes: Long
+    val fileSizeBytes: Long,
+    /** Short license name for Wikimedia photos (e.g. "CC BY-SA 4.0"); empty if unknown. */
+    val licenseShortName: String = ""
 ) {
     /**
      * QR Code is shown ONLY when globally enabled AND the photo originates from Wikimedia Commons

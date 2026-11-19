@@ -93,7 +93,9 @@ data class WikimediaExtMetadataDto(
     @SerialName("Country") val country: ExtMetaValue? = null,
     @SerialName("ImageDescription") val imageDescription: ExtMetaValue? = null,
     @SerialName("GPSLatitude") val gpsLat: ExtMetaValue? = null,
-    @SerialName("GPSLongitude") val gpsLon: ExtMetaValue? = null
+    @SerialName("GPSLongitude") val gpsLon: ExtMetaValue? = null,
+    /** Short license name, e.g. "CC BY-SA 4.0" or "Public domain". */
+    @SerialName("LicenseShortName") val licenseShortName: ExtMetaValue? = null
 )
 
 @Serializable
@@ -170,6 +172,7 @@ object WikimediaClient {
             imageUrlOrUri = bestImageUrl,
             localCachedFilePath = null,
             photographerName = photographer,
+            licenseShortName = LicenseText.clean(info.extmetadata?.licenseShortName?.value),
             locationName = location,
             commonsPageUrl = info.descriptionurl.ifBlank {
                 "https://commons.wikimedia.org/wiki/${page.title.replace(" ", "_")}"

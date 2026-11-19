@@ -572,8 +572,13 @@ private fun MetadataTextOverlayBlock(
                 Spacer(modifier = Modifier.height(3.dp))
             }
             val prefix = if (photo.sourceType == PhotoSourceType.WIKIMEDIA) "📷 " else "🗂 "
+            // Creative Commons licenses ask for the license to be shown along with the author.
+            val license = photo.licenseShortName
+                .takeIf { photo.sourceType == PhotoSourceType.WIKIMEDIA && it.isNotBlank() }
+                ?.let { " · $it" }
+                .orEmpty()
             Text(
-                text = "$prefix${photo.photographerName}",
+                text = "$prefix${photo.photographerName}$license",
                 color = textColor.copy(alpha = 0.90f),
                 fontFamily = fontFamily,
                 fontSize = preferences.textScale.secondarySp.sp,

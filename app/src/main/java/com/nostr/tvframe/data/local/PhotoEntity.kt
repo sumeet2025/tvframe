@@ -1,5 +1,6 @@
 package com.nostr.tvframe.data.local
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
@@ -25,6 +26,9 @@ data class PhotoEntity(
     val imageUrlOrUri: String,
     val localCachedFilePath: String?,
     val photographerName: String,
+    /** Short license name for Wikimedia photos, e.g. "CC BY-SA 4.0"; empty if unknown (added in DB v3). */
+    @ColumnInfo(defaultValue = "")
+    val licenseShortName: String = "",
     val locationName: String,
     val commonsPageUrl: String?,
     val categoryKey: String,
@@ -42,6 +46,7 @@ data class PhotoEntity(
         imageUrlOrUri = imageUrlOrUri,
         localCachedFilePath = localCachedFilePath,
         photographerName = photographerName,
+        licenseShortName = licenseShortName,
         locationName = locationName,
         commonsPageUrl = commonsPageUrl,
         width = width,
