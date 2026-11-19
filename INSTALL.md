@@ -10,7 +10,7 @@ It isn't on the Play Store yet, so you install it from an APK file (`TVFrame.apk
   To check your version, go to **Settings → System → About → Android TV OS version** (menu names vary a little by brand).
 - The APK file. The [latest release](https://github.com/sumeet2025/tvframe/releases/latest) is always available at this direct link:
   `https://github.com/sumeet2025/tvframe/releases/latest/download/TVFrame.apk`
-  Each release also has a copy with the version in its name (for example `TVFrame-v1.3.1.apk`). Both files are identical.
+  Each release also has a copy with the version in its name (for example `TVFrame-v1.4.0.apk`). Both files are identical.
 
 Pick **one** of the three methods below.
 
