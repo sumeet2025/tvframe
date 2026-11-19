@@ -49,6 +49,8 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Density
@@ -898,11 +900,18 @@ private fun StorageAndSmbTab(
                         modifier = Modifier.weight(0.6f)
                     )
                 }
+                // Masked like any password field; it's stored encrypted on the TV.
                 OutlinedTextField(
                     value = smbPassword,
                     onValueChange = { smbPassword = it },
-                    label = { Text("Password (EncryptedSharedPreferences)") },
+                    label = { Text("Password") },
+                    supportingText = { Text("Saved encrypted on this TV only") },
                     singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Password,
+                        autoCorrectEnabled = false
+                    ),
                     modifier = Modifier.fillMaxWidth()
                 )
             }
