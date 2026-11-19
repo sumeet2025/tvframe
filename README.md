@@ -77,18 +77,17 @@ If no file is found, the release build still works but produces an **unsigned** 
 ./install_to_tv.sh <TV-IP> [path/to/TVFrame.apk]   # or: ./install_to_tv.sh --build <TV-IP>
 ```
 
-## Publishing to Google Play (notes)
+## Google Play
 
-The APK is fine to share. Here's what I still need to work on before a Play Store release:
+I'm preparing a Google Play version for Android TV. It's built from the `play` flavor (see the table in [Building](#building)): TV-only, without All Files Access, the Lightning zap or Custom Search, so it fits Play's policies. Everything else is the same app, with the same package name and signing key.
 
-- **`MANAGE_EXTERNAL_STORAGE` (All files access)**: Play only allows this permission for apps whose core purpose needs broad file access, and it requires a declaration form in Play Console. A photo viewer will very likely be refused. Plan to remove it and rely on the Storage Access Framework folder picker (`OpenDocumentTree`) plus `READ_MEDIA_IMAGES` for USB drives.
-- **Target API level**: the app targets API 35. Play currently requires new apps and updates to target API 36, except Android TV apps, which need API 34 or higher. Because `android.software.leanback` is declared `required="false"`, Play can also offer the app to phones, where the API 36 rule applies. Either bump `targetSdk`/`compileSdk` to 36 or keep it a TV-only listing.
-- **App Bundle and Play App Signing**: Play needs an `.aab` (`./gradlew bundleRelease`), not an APK. Enroll in Play App Signing and use the keystore above as the upload key.
-- **Privacy policy and Data safety form**: required. The app makes network requests (Wikimedia Commons) and stores SMB credentials on the device.
-- **TV app quality guidelines**: an app must pass Google's Android TV quality review before it is listed for TV. This covers full D-pad navigation, no touch-only UI, a 320x180 launcher banner, correct `LEANBACK_LAUNCHER` handling, and similar checks.
-- **Store listing assets**: a 512x512 hi-res icon, a 1280x720 TV banner, and TV screenshots.
-- **Donations**: the About & Zaps tab links to Lightning/Nostr tips. Check Play's payments policy for in-app donation links before publishing.
+## Privacy
 
+TVFrame has no accounts, ads, analytics or tracking, and I don't collect any data. The full policy is in [PRIVACY.md](PRIVACY.md).
+
+## License
+
+TVFrame is open source under the [MIT License](LICENSE). Photos from Wikimedia Commons belong to their authors and are shown under their own licenses, which TVFrame displays next to the photographer's name.
 
 ## Branding assets
 

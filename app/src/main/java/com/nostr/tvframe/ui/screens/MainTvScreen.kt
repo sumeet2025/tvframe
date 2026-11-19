@@ -786,6 +786,15 @@ private fun StorageAndSmbTab(
                     label = "Pick USB Folder (SAF)",
                     onClick = onRequestUsbSafPicker
                 )
+                if (!viewModel.canRequestAllFilesAccess) {
+                    Text(
+                        text = "If your TV has no folder picker and USB photos don't show up, message me on Nostr " +
+                            "(${stringResource(R.string.nostr_primal_display)}) and I'll help.",
+                        color = TvTextSecondary,
+                        fontSize = 12.sp,
+                        modifier = Modifier.align(Alignment.CenterVertically)
+                    )
+                }
                 if (viewModel.canRequestAllFilesAccess && !viewModel.hasAllFilesAccess()) {
                     TvActionButton(
                         label = "Grant All-Files Access",
@@ -1460,6 +1469,50 @@ private fun AboutMeNostrZapsTab() {
                 )
             }
 
+            if (!StoreFlavor.allowAllFilesAccess) {
+                // Play build: no All Files Access, so some TVs can't read USB drives. Point people
+                // to me on Nostr instead (nothing about other download sources here).
+                Text(
+                    text = "💾 Need USB photo support on your TV? Message me on Nostr ($primalDisplay).",
+                    color = TvTextPrimary,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+
+            // Privacy summary (full policy: PRIVACY.md in the repo / the Play Store listing)
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color(0xFF0F172A), RoundedCornerShape(8.dp))
+                    .border(1.dp, Color(0xFF334155), RoundedCornerShape(8.dp))
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(3.dp)
+            ) {
+                Text(
+                    text = "🔒 Privacy",
+                    color = TvTextPrimary,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    text = "No accounts, ads, analytics or tracking. Your settings, photos and SMB login stay on this TV. " +
+                        "TVFrame only talks to Wikimedia Commons (to get photos) and to your own network share.",
+                    color = TvTextSecondary,
+                    fontSize = 11.sp,
+                    lineHeight = 15.sp
+                )
+                Text(
+                    text = if (StoreFlavor.showLightningZap) {
+                        "Full privacy policy: github.com/sumeet2025/tvframe/blob/main/PRIVACY.md"
+                    } else {
+                        "The full privacy policy is linked on TVFrame's Play Store page."
+                    },
+                    color = TvTextSecondary,
+                    fontSize = 11.sp
+                )
+            }
+
             // Version & Technical Build Metadata Box
             Row(
                 modifier = Modifier
@@ -1477,7 +1530,7 @@ private fun AboutMeNostrZapsTab() {
                     fontWeight = FontWeight.SemiBold
                 )
                 Text(
-                    text = "Package: ${BuildConfig.APPLICATION_ID} • Android TV 12 (API 31+)",
+                    text = "Package: ${BuildConfig.APPLICATION_ID} • Android TV 11+ (API 30+)",
                     color = TvTextSecondary,
                     fontSize = 11.sp
                 )
