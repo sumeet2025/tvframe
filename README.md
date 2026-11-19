@@ -12,6 +12,25 @@ This link always points to the newest release. What changed in each version is i
 
 Step-by-step install instructions (Downloader app, adb, or a USB stick), plus how to set TVFrame as your screensaver, are in [INSTALL.md](INSTALL.md). If you use the Downloader app on your TV, paste the APK link above directly.
 
+## Want USB photos and Custom Search? Get the GitHub version
+
+When TVFrame is on Google Play, the Play version won't include a few things Play doesn't allow: **All Files Access for USB drives** (needed on TVs that hide the folder picker), **Custom Search** on Wikimedia Commons, and the **Lightning zap** in About. The APK I publish here has all of them.
+
+Easiest way to install it with a USB stick:
+
+1. On a computer, download the latest APK: [TVFrame.apk](https://github.com/sumeet2025/tvframe/releases/latest/download/TVFrame.apk)
+   (`https://github.com/sumeet2025/tvframe/releases/latest/download/TVFrame.apk`).
+2. Copy `TVFrame.apk` onto a USB stick and plug the stick into the TV.
+3. On the TV, install a file manager from the Play Store, such as **File Commander** or **X-plore File Manager**.
+4. Allow that file manager to install apps: **Settings → Apps → Security & restrictions → Install unknown apps** (on some TVs **Unknown sources**) → turn it on for your file manager.
+5. Open the file manager, go to the USB stick, select `TVFrame.apk` and choose **Install**.
+
+**Already installed TVFrame from Google Play?** You don't need to uninstall it. Both versions have the same package name and are signed with the same key, so the GitHub APK installs right over the Play version and keeps your photos, favorites and settings. That works as long as the GitHub version number is the same as or higher than the one you have (you can see yours in TVFrame's About tab). Android won't install an older version over a newer one.
+
+One thing to know: if Google Play later installs a TVFrame update on top, you'll be back on the Play version (your data stays, but USB All Files Access and Custom Search go away until you install the GitHub APK again).
+
+Other install methods (Downloader app, adb) are in [INSTALL.md](INSTALL.md).
+
 ## Key Features Included
 
 1. **Multi-Source Photo Sourcing & Sync**
