@@ -63,7 +63,7 @@ Works on Mac, Windows and Linux.
 1. Copy the APK onto a USB stick from your computer.
 2. Plug the stick into the TV.
 3. Install a file manager from the Play Store, such as **File Commander** or **X-plore File Manager**.
-4. Allow the file manager to install apps: **Settings → Apps → Security & restrictions → Unknown sources** → turn on your file manager.
+4. Allow the file manager to install apps: **Settings → Apps → Security & restrictions → Install unknown apps** (on some TVs **Unknown sources**) → turn on your file manager.
 5. Open the file manager, browse to the USB stick, select the APK and choose **Install**.
 
 ---
