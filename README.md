@@ -40,9 +40,19 @@ Requirements: JDK 17 and the Android SDK (platform 35, build-tools 35.0.0). The 
 
 ```bash
 echo "sdk.dir=/path/to/android-sdk" > local.properties
-./gradlew assembleDebug      # app/build/outputs/apk/debug/app-debug.apk
-./gradlew assembleRelease    # app/build/outputs/apk/release/app-release.apk
+./gradlew assembleGithubDebug      # app/build/outputs/apk/github/debug/app-github-debug.apk
+./gradlew assembleGithubRelease    # app/build/outputs/apk/github/release/app-github-release.apk
+./gradlew bundlePlayRelease        # app/build/outputs/bundle/playRelease/app-play-release.aab
 ```
+
+There are two build flavors with the same package name and signing key, so either one installs over the other:
+
+| | `github` (APK on GitHub releases) | `play` (Google Play) |
+|---|---|---|
+| All Files Access for USB drives | Yes, optional | No, USB folders are picked with the system folder picker |
+| Lightning zap in About | Yes | No, only the Nostr follow |
+| Custom Search on Wikimedia Commons | Yes | No, only the curated categories |
+| Devices | Android TV / Google TV | Android TV / Google TV |
 
 ### Release signing
 
@@ -59,7 +69,7 @@ keyAlias=tvframe
 keyPassword=...
 ```
 
-If no file is found, `assembleRelease` still works but produces an **unsigned** APK. Keep the keystore backed up: every future update has to be signed with the same key, or users must uninstall first.
+If no file is found, the release build still works but produces an **unsigned** APK. Keep the keystore backed up: every future update has to be signed with the same key, or users must uninstall first.
 
 ### Install to a TV from your computer
 

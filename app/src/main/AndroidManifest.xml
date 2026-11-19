@@ -1,11 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Android TV Hardware & Leanback Declarations -->
+    <!-- TVFrame is a TV-only app: Play only offers it to Android TV / Google TV devices -->
     <uses-feature
         android:name="android.software.leanback"
-        android:required="false" />
+        android:required="true" />
     <uses-feature
         android:name="android.hardware.touchscreen"
         android:required="false" />
@@ -19,15 +18,9 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
 
-    <!-- External USB Storage Permissions for Android TV 11+ -->
-    <uses-permission
-        android:name="android.permission.READ_EXTERNAL_STORAGE"
-        android:maxSdkVersion="32" />
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
-    <!-- Optional All-Files Access for USB mass storage on TVs where the SAF folder picker is hidden -->
-    <uses-permission
-        android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
-        tools:ignore="ScopedStorage" />
+    <!-- USB drives are read through the Storage Access Framework folder picker, so no media
+         permission is needed. The GitHub build adds MANAGE_EXTERNAL_STORAGE in
+         src/github/AndroidManifest.xml for TVs that hide the folder picker. -->
 
     <application
         android:name=".TVFrameApp"

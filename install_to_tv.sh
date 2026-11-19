@@ -38,12 +38,12 @@ cd "$(dirname "$0")"
 
 if [ "$BUILD" = "1" ]; then
     echo "[build] Building debug APK..."
-    ./gradlew assembleDebug
-    APK_PATH="app/build/outputs/apk/debug/app-debug.apk"
+    ./gradlew assembleGithubDebug
+    APK_PATH="app/build/outputs/apk/github/debug/app-github-debug.apk"
 fi
 
 if [ -z "$APK_PATH" ]; then
-    APK_PATH="$(ls -t dist/TVFrame-*.apk app/build/outputs/apk/release/*.apk app/build/outputs/apk/debug/*.apk 2>/dev/null | head -n1 || true)"
+    APK_PATH="$(ls -t dist/TVFrame-*.apk app/build/outputs/apk/github/release/*.apk app/build/outputs/apk/github/debug/*.apk 2>/dev/null | head -n1 || true)"
 fi
 [ -n "$APK_PATH" ] && [ -f "$APK_PATH" ] || { echo "Error: no APK found. Pass the APK path or use --build."; exit 1; }
 

@@ -25,6 +25,7 @@ import com.nostr.tvframe.domain.model.TextScaleOption
 import com.nostr.tvframe.domain.model.UiScaleOption
 import com.nostr.tvframe.domain.model.UserPreferences
 import com.nostr.tvframe.domain.model.WikimediaCategoryFilter
+import com.nostr.tvframe.util.StoreFlavor
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -224,8 +225,13 @@ class UserPreferencesRepository(private val context: Context) {
         val stored = prefs[Keys.ACTIVE_CATEGORIES]
             ?.mapNotNull { name -> WikimediaCategoryFilter.entries.firstOrNull { it.name == name } }
             ?.toSet()
-        if (!stored.isNullOrEmpty()) return stored
-        return setOf(enumOrDefault(prefs[Keys.ACTIVE_CATEGORY], WikimediaCategoryFilter.PICTURES_OF_THE_DAY))
+        val raw = if (!stored.isNullOrEmpty()) {
+            stored
+        } else {
+            setOf(enumOrDefault(prefs[Keys.ACTIVE_CATEGORY], WikimediaCategoryFilter.PICTURES_OF_THE_DAY))
+        }
+        // The Play build has no Custom Search; ignore it if it was selected in the GitHub APK.
+        return StoreFlavor.sanitizeCategories(raw)
     }
 
     suspend fun updateOverlayAnchors(textAnchor: OverlayAnchor, qrAnchor: OverlayAnchor) {

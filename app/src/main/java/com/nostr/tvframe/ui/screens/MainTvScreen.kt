@@ -87,6 +87,7 @@ import com.nostr.tvframe.ui.theme.TvTextSecondary
 import com.nostr.tvframe.ui.theme.TvZapGold
 import com.nostr.tvframe.ui.theme.tvFocusableCard
 import com.nostr.tvframe.util.QrCodeGenerator
+import com.nostr.tvframe.util.StoreFlavor
 
 enum class TvNavTab(val title: String) {
     GALLERY("🖼 Gallery & Filters"),
@@ -94,7 +95,7 @@ enum class TvNavTab(val title: String) {
     STORAGE_SMB("💾 USB & SMB NAS"),
     OVERLAY_STUDIO("🎨 Overlay Studio"),
     TV_SETUP_GUIDE("📺 TV Setup"),
-    ABOUT_NOSTR("⚡ About & Zaps")
+    ABOUT_NOSTR(if (StoreFlavor.showLightningZap) "⚡ About & Zaps" else "ℹ About")
 }
 
 @Composable
@@ -392,7 +393,7 @@ private fun GalleryAndFiltersTab(
                     fontSize = 12.sp
                 )
             }
-            items(WikimediaCategoryFilter.entries) { filter ->
+            items(StoreFlavor.availableCategories) { filter ->
                 val isSelected = filter in prefs.activeCategories
                 TvActionButton(
                     label = if (isSelected) "☑ ${filter.displayName}" else "☐ ${filter.displayName}",
@@ -502,7 +503,9 @@ private fun GalleryAndFiltersTab(
         ) {
             // The search box only exists while "Custom Search" is the selected category, so it is
             // never mistaken for something that affects the preset categories.
-            if (WikimediaCategoryFilter.CUSTOM_QUERY in prefs.activeCategories) {
+            if (StoreFlavor.allowCustomSearch &&
+                WikimediaCategoryFilter.CUSTOM_QUERY in prefs.activeCategories
+            ) {
                 val submitSearch = { onSubmitCustomSearch(customSearchText) }
                 OutlinedTextField(
                     value = customSearchText,
@@ -778,7 +781,7 @@ private fun StorageAndSmbTab(
                     label = "Pick USB Folder (SAF)",
                     onClick = onRequestUsbSafPicker
                 )
-                if (!viewModel.hasAllFilesAccess()) {
+                if (viewModel.canRequestAllFilesAccess && !viewModel.hasAllFilesAccess()) {
                     TvActionButton(
                         label = "Grant All-Files Access",
                         accentColor = TvZapGold,
@@ -1358,7 +1361,9 @@ private fun AboutMeNostrZapsTab() {
         )
     }
 
-    val zapQrBitmap = remember(lightningAddress) {
+    // The Play build has no zap (Play's payments policy); it keeps the Nostr follow.
+    val showZap = StoreFlavor.showLightningZap
+    val zapQrBitmap = if (!showZap) null else remember(lightningAddress) {
         QrCodeGenerator.generateQrBitmap(
             content = "lightning:$lightningAddress",
             sizePx = 360,
@@ -1389,15 +1394,19 @@ private fun AboutMeNostrZapsTab() {
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Text(
-                    text = "⚡ Enjoying TVFrame? Send a Zap on Nostr!",
-                    color = TvZapGold,
+                    text = if (showZap) "⚡ Enjoying TVFrame? Send a Zap on Nostr!" else "Enjoying TVFrame? Follow me on Nostr!",
+                    color = if (showZap) TvZapGold else TvFocusAccent,
                     fontSize = 20.sp,
                     fontWeight = FontWeight.ExtraBold
                 )
             }
 
             Text(
-                text = "TVFrame is built for big-screen photography lovers. Follow me on Nostr via Primal or send a Lightning Zap if you enjoy the app!",
+                text = if (showZap) {
+                    "TVFrame is built for big-screen photography lovers. Follow me on Nostr via Primal or send a Lightning Zap if you enjoy the app!"
+                } else {
+                    "TVFrame is built for big-screen photography lovers. Follow me on Nostr via Primal for updates and to say hi!"
+                },
                 color = TvTextPrimary,
                 fontSize = 13.sp,
                 lineHeight = 18.sp
@@ -1417,12 +1426,14 @@ private fun AboutMeNostrZapsTab() {
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold
                 )
-                Text(
-                    text = "⚡ Lightning Zap Address:  $lightningAddress",
-                    color = TvZapGold,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                if (showZap) {
+                    Text(
+                        text = "⚡ Lightning Zap Address:  $lightningAddress",
+                        color = TvZapGold,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
                 Text(
                     text = "🔑 Nostr Public Key (NPUB):",
                     color = TvTextSecondary,

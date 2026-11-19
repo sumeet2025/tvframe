@@ -26,6 +26,7 @@ import androidx.work.WorkManager
 import com.nostr.tvframe.data.sync.SyncStatus
 import com.nostr.tvframe.data.sync.SyncTrigger
 import com.nostr.tvframe.data.worker.PrefetchWorker
+import com.nostr.tvframe.util.StoreFlavor
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
@@ -179,6 +180,9 @@ class MainViewModel : ViewModel() {
 
     fun hasAllFilesAccess(): Boolean = usbSource.hasAllFilesAccessPermission()
 
+    /** False in the Play build, which doesn't declare All Files Access. */
+    val canRequestAllFilesAccess: Boolean = StoreFlavor.allowAllFilesAccess
+
     /**
      * Turns a category on or off (several can be selected; a sync mixes them). This doesn't
      * start a download by itself, so you can change several things and then press Sync once.
@@ -196,6 +200,7 @@ class MainViewModel : ViewModel() {
     }
 
     fun submitCustomSearch(text: String) {
+        if (!StoreFlavor.allowCustomSearch) return
         viewModelScope.launch {
             prefsRepo.updateWikimediaFilter(customQuery = text.trim())
             prefsRepo.ensureCategorySelected(WikimediaCategoryFilter.CUSTOM_QUERY)
