@@ -1643,7 +1643,11 @@ private fun PhotoGridCard(
                 overflow = TextOverflow.Ellipsis
             )
             Text(
-                text = photo.photographerName,
+                text = if (photo.licenseShortName.isNotBlank()) {
+                    "${photo.photographerName} · ${photo.licenseShortName}"
+                } else {
+                    photo.photographerName
+                },
                 color = TvTextSecondary,
                 fontSize = 9.sp,
                 maxLines = 1,

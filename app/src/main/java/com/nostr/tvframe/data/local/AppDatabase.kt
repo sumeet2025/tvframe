@@ -9,7 +9,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [PhotoEntity::class, SeenPhotoEntity::class, SyncCursorEntity::class],
-    version = 2,
+    version = 3,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -44,6 +44,18 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * v2 -> v3 (app 1.4.0): adds the license name shown next to the photographer credit.
+         * Existing rows get an empty value; photos and favorites are untouched.
+         */
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE `photos` ADD COLUMN `licenseShortName` TEXT NOT NULL DEFAULT ''"
+                )
+            }
+        }
+
         fun getInstance(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 // No destructive fallback: a missing migration must fail loudly in testing rather
@@ -54,7 +66,7 @@ abstract class AppDatabase : RoomDatabase() {
                     "tvframe.db"
                 )
                     .enableMultiInstanceInvalidation()
-                    .addMigrations(MIGRATION_1_2)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                     .build()
                 INSTANCE = instance
                 instance
