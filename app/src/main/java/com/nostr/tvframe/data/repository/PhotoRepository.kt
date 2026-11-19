@@ -11,14 +11,11 @@ import com.nostr.tvframe.data.local.SyncCursorEntity
 import com.nostr.tvframe.data.local.UserPreferencesRepository
 import com.nostr.tvframe.data.remote.WikimediaApiService
 import com.nostr.tvframe.data.remote.WikimediaClient
+import com.nostr.tvframe.data.safety.FlavorSafeSearch
+import com.nostr.tvframe.data.safety.SafeSearchPolicy
 import com.nostr.tvframe.data.storage.SmartCacheManager
 import com.nostr.tvframe.data.storage.SmbNetworkDataSource
 import com.nostr.tvframe.data.storage.UsbStorageDataSource
-import com.nostr.tvframe.domain.model.OrientationFilter
-import com.nostr.tvframe.domain.model.PhotoItem
-import com.nostr.tvframe.domain.model.PhotoSourceType
-import com.nostr.tvframe.domain.model.UserPreferences
-import com.nostr.tvframe.domain.model.WikimediaCategoryFilter
 import com.nostr.tvframe.data.sync.AutoSyncPolicy
 import com.nostr.tvframe.data.sync.PagedCollector
 import com.nostr.tvframe.data.sync.SearchPage
@@ -27,6 +24,11 @@ import com.nostr.tvframe.data.sync.SyncPhase
 import com.nostr.tvframe.data.sync.SyncReport
 import com.nostr.tvframe.data.sync.SyncStatusTracker
 import com.nostr.tvframe.data.sync.SyncTrigger
+import com.nostr.tvframe.domain.model.OrientationFilter
+import com.nostr.tvframe.domain.model.PhotoItem
+import com.nostr.tvframe.domain.model.PhotoSourceType
+import com.nostr.tvframe.domain.model.UserPreferences
+import com.nostr.tvframe.domain.model.WikimediaCategoryFilter
 import com.nostr.tvframe.util.DisplaySize
 import coil.imageLoader
 import coil.request.CachePolicy
@@ -61,6 +63,9 @@ class PhotoRepository(
     private val preferencesRepository: UserPreferencesRepository,
     private val syncStatusTracker: SyncStatusTracker
 ) {
+    /** Custom Search filtering for this build (strict on Play, open on GitHub). */
+    private val safeSearch: SafeSearchPolicy = FlavorSafeSearch.policy
+
 
     private val syncMutex = Mutex()
 
@@ -221,12 +226,21 @@ class PhotoRepository(
                         )
                         val entities = response.query?.pages?.values.orEmpty()
                             .sortedBy { it.index } // keep Commons' relevance order
+                            // Play build: drop anything in a blocked category (or with unknown categories)
+                            .filter { page -> safeSearch.isResultAllowed(page.categories?.map { it.title }, page.title) }
                             .mapNotNull { page -> WikimediaClient.mapDtoToEntity(page, category.name) }
                             .filter { entity -> matchesResolutionAndOrientation(entity, prefs) }
                         val ids = entities.map { it.id }
                         alreadyStored += existingIds(ids)
                         alreadySeen += seenIds(ids)
-                        SearchPage(entities, response.continuation?.gsroffset)
+                        val next = SyncMath.nextSearchOffset(
+                            currentOffset = offset,
+                            pageSize = PAGE_SIZE,
+                            resultsOnPage = response.query?.pages?.size ?: 0,
+                            gsroffset = response.continuation?.gsroffset,
+                            categoriesTruncated = response.continuation?.clcontinue != null
+                        )
+                        SearchPage(entities, next)
                     },
                     // Only photos that aren't in the gallery and were never downloaded before count.
                     isWanted = { entity -> entity.id !in alreadyStored && entity.id !in alreadySeen },
@@ -394,7 +408,8 @@ class PhotoRepository(
     private fun searchableCategories(prefs: UserPreferences): List<WikimediaCategoryFilter> =
         WikimediaCategoryFilter.entries.filter { category ->
             category in prefs.activeCategories &&
-                (category != WikimediaCategoryFilter.CUSTOM_QUERY || prefs.customSearchQuery.isNotBlank())
+                (category != WikimediaCategoryFilter.CUSTOM_QUERY ||
+                    (prefs.customSearchQuery.isNotBlank() && safeSearch.isQueryAllowed(prefs.customSearchQuery)))
         }
 
     /**
@@ -510,7 +525,7 @@ class PhotoRepository(
      */
     private fun buildWikimediaQuery(category: WikimediaCategoryFilter, prefs: UserPreferences): String {
         val base = if (category == WikimediaCategoryFilter.CUSTOM_QUERY) {
-            "${prefs.customSearchQuery.trim()} filetype:bitmap"
+            safeSearch.customSearchQuery(prefs.customSearchQuery)
         } else {
             category.commonsQuery
         }

@@ -18,7 +18,7 @@ None of this is sent to me. App backup is turned off, so it isn't copied to clou
 
 ## What TVFrame sends over the internet
 
-- **Wikimedia Commons.** To find and download photos, TVFrame sends requests to Wikimedia Commons (`commons.wikimedia.org` and `upload.wikimedia.org`) over HTTPS. A request includes the categories you picked (and, in the GitHub version, any Custom Search text you type), plus a User-Agent that names the app and its version. Like any website, Wikimedia sees your TV's IP address. Wikimedia's handling of that is covered by the [Wikimedia Foundation Privacy Policy](https://foundation.wikimedia.org/wiki/Policy:Privacy_policy). TVFrame also refreshes photos in the background about every 6 hours, using the same kind of request.
+- **Wikimedia Commons.** To find and download photos, TVFrame sends requests to Wikimedia Commons (`commons.wikimedia.org` and `upload.wikimedia.org`) over HTTPS. A request includes the categories you picked and any Custom Search text you type, plus a User-Agent that names the app and its version. Like any website, Wikimedia sees your TV's IP address. Wikimedia's handling of that is covered by the [Wikimedia Foundation Privacy Policy](https://foundation.wikimedia.org/wiki/Policy:Privacy_policy). TVFrame also refreshes photos in the background about every 6 hours, using the same kind of request.
 - **Your own network share.** If you turn on the SMB source, TVFrame connects to the computer or NAS you entered and sends your SMB login only to it. This stays on your home network unless you entered an address outside it.
 - **USB drives** are read directly on the TV. Nothing from them is uploaded anywhere.
 

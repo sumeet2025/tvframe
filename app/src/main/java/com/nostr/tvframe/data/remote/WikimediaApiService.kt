@@ -34,7 +34,14 @@ interface WikimediaApiService {
         /** Result offset for paging; null (omitted) for the first page. */
         @Query("gsroffset") offset: Int? = null,
         @Query("prop") prop: String = "imageinfo|categories",
-        @Query("cllimit") categoryLimit: Int = 15,
+        /**
+         * Categories for every result on the page. The limit is shared by the whole page, and
+         * when it runs out Commons returns `clcontinue` *instead of* `gsroffset`, which used to
+         * end paging after the first page. "max" plus visible categories only (hidden ones are
+         * license/maintenance tags) fits a full page, so `gsroffset` comes back.
+         */
+        @Query("cllimit") categoryLimit: String = "max",
+        @Query("clshow") categoryShow: String = "!hidden",
         @Query("iiprop") iiProp: String = "url|size|extmetadata",
         @Query("iiurlwidth") thumbnailWidth: Int = 3840
     ): WikimediaQueryResponse
@@ -49,7 +56,9 @@ data class WikimediaQueryResponse(
 
 @Serializable
 data class WikimediaContinue(
-    val gsroffset: Int? = null
+    val gsroffset: Int? = null,
+    /** Present when not all categories fit; the search page itself is still complete. */
+    val clcontinue: String? = null
 )
 
 @Serializable

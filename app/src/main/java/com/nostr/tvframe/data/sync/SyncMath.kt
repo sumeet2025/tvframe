@@ -23,4 +23,22 @@ object SyncMath {
 
     /** CirrusSearch keyword limiting results to images at least [minWidthPx] wide. */
     fun minWidthKeyword(minWidthPx: Int): String = "filew:>${minWidthPx - 1}"
+
+    /**
+     * Offset of the next search page, or null when there are no more results.
+     * Normally that's Commons' `gsroffset`. When a page's categories didn't all fit, Commons sends
+     * `clcontinue` without `gsroffset` even though more results exist, so then a full page
+     * means "keep going" at [currentOffset] + [pageSize].
+     */
+    fun nextSearchOffset(
+        currentOffset: Int,
+        pageSize: Int,
+        resultsOnPage: Int,
+        gsroffset: Int?,
+        categoriesTruncated: Boolean
+    ): Int? = when {
+        gsroffset != null -> gsroffset
+        categoriesTruncated && resultsOnPage >= pageSize -> currentOffset + pageSize
+        else -> null
+    }
 }
