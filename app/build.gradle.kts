@@ -54,6 +54,27 @@ android {
         }
     }
 
+    // Two store flavors with the same applicationId and signing key, so either build can be
+    // installed over the other without losing data:
+    //  - github: the APK I publish on GitHub releases. Keeps All Files Access (for TVs that hide
+    //    the folder picker), the Lightning zap in About, and Custom Search.
+    //  - play:   the Google Play build. TV-only, no All Files Access, no zap QR, no free-text search.
+    flavorDimensions += "store"
+    productFlavors {
+        create("github") {
+            dimension = "store"
+            buildConfigField("boolean", "ALLOW_ALL_FILES_ACCESS", "true")
+            buildConfigField("boolean", "SHOW_LIGHTNING_ZAP", "true")
+            buildConfigField("boolean", "ALLOW_CUSTOM_SEARCH", "true")
+        }
+        create("play") {
+            dimension = "store"
+            buildConfigField("boolean", "ALLOW_ALL_FILES_ACCESS", "false")
+            buildConfigField("boolean", "SHOW_LIGHTNING_ZAP", "false")
+            buildConfigField("boolean", "ALLOW_CUSTOM_SEARCH", "false")
+        }
+    }
+
     buildTypes {
         release {
             if (keystorePropsFile != null) {
