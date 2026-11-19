@@ -3,7 +3,6 @@ package com.nostr.tvframe.ui.theme
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.focusable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
@@ -53,6 +52,10 @@ fun TVFrameTheme(content: @Composable () -> Unit) {
  * Explicit D-Pad focus modifier for 10-foot Android TV navigation.
  * Uses a high-contrast 2.5dp cyan border and surface highlight without overscaling outside parent bounds,
  * ensuring edge pills (such as "Gallery & Filters") never get their rounded corners sliced off.
+ *
+ * It only draws the focus state. Put `.clickable { }` right after it: clickable is what takes
+ * focus, and this modifier sees it through `hasFocus`. (It used to add its own `.focusable()`
+ * as well, which gave every button a second, invisible focus stop.)
  */
 fun Modifier.tvFocusableCard(
     focusedScale: Float = 1.0f,
@@ -75,7 +78,6 @@ fun Modifier.tvFocusableCard(
             color = if (isFocused) TvSurfaceElevated else TvSurfaceCard,
             shape = shape
         )
-        .focusable()
 }
 
 fun FontFamilyOption.toComposeFontFamily(): FontFamily = when (this) {

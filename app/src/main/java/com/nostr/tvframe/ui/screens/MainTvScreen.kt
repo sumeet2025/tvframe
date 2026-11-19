@@ -4,6 +4,9 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -1606,24 +1609,19 @@ private fun PhotoGridCard(
             )
 
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(
+                CardIconButton(
                     text = if (photo.isFavorite) "♥" else "♡",
-                    color = if (photo.isFavorite) TvFavoriteCoral else Color.White,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier
-                        .background(Color(0xCC090D16), RoundedCornerShape(6.dp))
-                        .clickable { onToggleFavorite() }
-                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                    textColor = if (photo.isFavorite) TvFavoriteCoral else Color.White,
+                    background = Color(0xCC090D16),
+                    contentDescription = if (photo.isFavorite) "Remove from favorites" else "Add to favorites",
+                    onClick = onToggleFavorite
                 )
-                Text(
+                CardIconButton(
                     text = "🗑",
-                    color = Color.White,
-                    fontSize = 12.sp,
-                    modifier = Modifier
-                        .background(Color(0xCC7F1D1D), RoundedCornerShape(6.dp))
-                        .clickable { onDeletePhoto() }
-                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                    textColor = Color.White,
+                    background = Color(0xCC7F1D1D),
+                    contentDescription = "Delete photo",
+                    onClick = onDeletePhoto
                 )
             }
         }
@@ -1744,4 +1742,37 @@ private fun TvActionButton(
             fontWeight = FontWeight.SemiBold
         )
     }
+}
+
+/**
+ * Small ♥ / 🗑 button on a photo card. When it has remote focus it gets a thick white outline
+ * and grows slightly, so it's clear which button Select will press.
+ */
+@Composable
+private fun CardIconButton(
+    text: String,
+    textColor: Color,
+    background: Color,
+    contentDescription: String,
+    onClick: () -> Unit
+) {
+    var isFocused by remember { mutableStateOf(false) }
+    val shape = RoundedCornerShape(6.dp)
+    Text(
+        text = text,
+        color = textColor,
+        fontSize = if (isFocused) 15.sp else 13.sp,
+        fontWeight = FontWeight.Bold,
+        modifier = Modifier
+            .onFocusChanged { isFocused = it.isFocused || it.hasFocus }
+            .border(
+                width = if (isFocused) 2.dp else 0.dp,
+                color = if (isFocused) Color.White else Color.Transparent,
+                shape = shape
+            )
+            .background(if (isFocused) TvFocusAccent.copy(alpha = 0.85f) else background, shape)
+            .semantics { this.contentDescription = contentDescription }
+            .clickable { onClick() }
+            .padding(horizontal = 6.dp, vertical = 2.dp)
+    )
 }
