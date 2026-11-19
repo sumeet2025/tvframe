@@ -27,4 +27,21 @@ class SyncMathTest {
     fun minWidthKeywordIsInclusive() {
         assertEquals("filew:>1919", SyncMath.minWidthKeyword(1920))
     }
+
+    @Test
+    fun nextOffsetUsesGsroffsetWhenPresent() {
+        assertEquals(70, SyncMath.nextSearchOffset(35, 35, 35, gsroffset = 70, categoriesTruncated = false))
+    }
+
+    @Test
+    fun nextOffsetContinuesWhenOnlyCategoriesWereCutOff() {
+        // Commons sends clcontinue instead of gsroffset; a full page means there's more.
+        assertEquals(85, SyncMath.nextSearchOffset(50, 35, 35, gsroffset = null, categoriesTruncated = true))
+    }
+
+    @Test
+    fun nextOffsetStopsOnLastPage() {
+        assertEquals(null, SyncMath.nextSearchOffset(50, 35, 12, gsroffset = null, categoriesTruncated = true))
+        assertEquals(null, SyncMath.nextSearchOffset(50, 35, 35, gsroffset = null, categoriesTruncated = false))
+    }
 }

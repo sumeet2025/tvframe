@@ -58,7 +58,8 @@ android {
     // installed over the other without losing data:
     //  - github: the APK I publish on GitHub releases. Keeps All Files Access (for TVs that hide
     //    the folder picker), the Lightning zap in About, and Custom Search.
-    //  - play:   the Google Play build. TV-only, no All Files Access, no zap QR, no free-text search.
+    //  - play:   the Google Play build. TV-only, no All Files Access, no zap QR, and Custom Search
+    //    is family-safe (curated images, category and word blocklists).
     flavorDimensions += "store"
     productFlavors {
         create("github") {
@@ -71,7 +72,8 @@ android {
             dimension = "store"
             buildConfigField("boolean", "ALLOW_ALL_FILES_ACCESS", "false")
             buildConfigField("boolean", "SHOW_LIGHTNING_ZAP", "false")
-            buildConfigField("boolean", "ALLOW_CUSTOM_SEARCH", "false")
+            // Custom Search is on, but family-safe: see data/safety/SafeSearchPolicy.kt
+            buildConfigField("boolean", "ALLOW_CUSTOM_SEARCH", "true")
         }
     }
 

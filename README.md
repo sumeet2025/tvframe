@@ -12,9 +12,9 @@ This link always points to the newest release. What changed in each version is i
 
 Step-by-step install instructions (Downloader app, adb, or a USB stick), plus how to set TVFrame as your screensaver, are in [INSTALL.md](INSTALL.md). If you use the Downloader app on your TV, paste the APK link above directly.
 
-## Want USB photos and Custom Search? Get the GitHub version
+## Want USB photos and open search? Get the GitHub version
 
-When TVFrame is on Google Play, the Play version won't include a few things Play doesn't allow: **All Files Access for USB drives** (needed on TVs that hide the folder picker), **Custom Search** on Wikimedia Commons, and the **Lightning zap** in About. The APK I publish here has all of them.
+When TVFrame is on Google Play, the Play version won't include a few things Play doesn't allow: **All Files Access for USB drives** (needed on TVs that hide the folder picker) and the **Lightning zap** in About. Its Custom Search is also family-safe: it only searches curated photos and filters out adult content. The APK I publish here has all of them.
 
 Easiest way to install it with a USB stick:
 
@@ -27,7 +27,7 @@ Easiest way to install it with a USB stick:
 
 **Already installed TVFrame from Google Play?** You don't need to uninstall it. Both versions have the same package name and are signed with the same key, so the GitHub APK installs right over the Play version and keeps your photos, favorites and settings. That works as long as the GitHub version number is the same as or higher than the one you have (you can see yours in TVFrame's About tab). Android won't install an older version over a newer one.
 
-One thing to know: if Google Play later installs a TVFrame update on top, you'll be back on the Play version (your data stays, but USB All Files Access and Custom Search go away until you install the GitHub APK again).
+One thing to know: if Google Play later installs a TVFrame update on top, you'll be back on the Play version (your data stays, but USB All Files Access goes away and Custom Search becomes family-safe until you install the GitHub APK again).
 
 Other install methods (Downloader app, adb) are in [INSTALL.md](INSTALL.md).
 
@@ -70,7 +70,7 @@ There are two build flavors with the same package name and signing key, so eithe
 |---|---|---|
 | All Files Access for USB drives | Yes, optional | No, USB folders are picked with the system folder picker |
 | Lightning zap in About | Yes | No, only the Nostr follow |
-| Custom Search on Wikimedia Commons | Yes | No, only the curated categories |
+| Custom Search on Wikimedia Commons | Yes, open search | Yes, family-safe: Featured/Quality/Valued images only, with category and word blocklists |
 | Devices | Android TV / Google TV | Android TV / Google TV |
 
 ### Release signing
@@ -98,7 +98,7 @@ If no file is found, the release build still works but produces an **unsigned** 
 
 ## Google Play
 
-I'm preparing a Google Play version for Android TV. It's built from the `play` flavor (see the table in [Building](#building)): TV-only, without All Files Access, the Lightning zap or Custom Search, so it fits Play's policies. Everything else is the same app, with the same package name and signing key.
+I'm preparing a Google Play version for Android TV. It's built from the `play` flavor (see the table in [Building](#building)): TV-only, without All Files Access or the Lightning zap, and with family-safe Custom Search, so it fits Play's policies. Everything else is the same app, with the same package name and signing key.
 
 ## Privacy
 

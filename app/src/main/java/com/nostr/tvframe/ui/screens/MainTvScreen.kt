@@ -62,6 +62,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.nostr.tvframe.BuildConfig
 import com.nostr.tvframe.R
+import com.nostr.tvframe.data.safety.FlavorSafeSearch
 import com.nostr.tvframe.data.sync.SyncPhase
 import com.nostr.tvframe.data.sync.SyncStatus
 import com.nostr.tvframe.domain.model.FontFamilyOption
@@ -516,6 +517,11 @@ private fun GalleryAndFiltersTab(
                     value = customSearchText,
                     onValueChange = { customSearchText = it },
                     label = { Text("Custom search (e.g., Dolomites, Swiss Alps, Kingfisher)") },
+                    supportingText = if (FlavorSafeSearch.policy.isStrict) {
+                        { Text("Family-safe: searches Wikimedia's featured and quality photos only") }
+                    } else {
+                        null
+                    },
                     placeholder = { Text("Type what you want to see, then press Search") },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),

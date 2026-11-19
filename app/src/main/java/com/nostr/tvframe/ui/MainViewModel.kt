@@ -4,7 +4,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.nostr.tvframe.TVFrameApp
 import com.nostr.tvframe.data.local.SmbCredentials
+import com.nostr.tvframe.data.safety.FlavorSafeSearch
+import com.nostr.tvframe.data.safety.SafeSearchPolicy
 import com.nostr.tvframe.data.storage.UsbVolumeInfo
+import com.nostr.tvframe.data.sync.SyncStatus
+import com.nostr.tvframe.data.sync.SyncTrigger
+import com.nostr.tvframe.data.worker.PrefetchWorker
 import com.nostr.tvframe.domain.model.FontFamilyOption
 import com.nostr.tvframe.domain.model.OrientationFilter
 import com.nostr.tvframe.domain.model.OverlayAnchor
@@ -17,15 +22,12 @@ import com.nostr.tvframe.domain.model.SmbAuthMode
 import com.nostr.tvframe.domain.model.TextColorPreset
 import com.nostr.tvframe.domain.model.TextContrastMode
 import com.nostr.tvframe.domain.model.TextScaleOption
-import com.nostr.tvframe.domain.model.UiScaleOption
-import com.nostr.tvframe.domain.model.UserPreferences
-import com.nostr.tvframe.domain.model.WikimediaCategoryFilter
 import android.text.format.DateUtils
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
-import com.nostr.tvframe.data.sync.SyncStatus
-import com.nostr.tvframe.data.sync.SyncTrigger
-import com.nostr.tvframe.data.worker.PrefetchWorker
+import com.nostr.tvframe.domain.model.UiScaleOption
+import com.nostr.tvframe.domain.model.UserPreferences
+import com.nostr.tvframe.domain.model.WikimediaCategoryFilter
 import com.nostr.tvframe.util.StoreFlavor
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.combine
@@ -201,6 +203,11 @@ class MainViewModel : ViewModel() {
 
     fun submitCustomSearch(text: String) {
         if (!StoreFlavor.allowCustomSearch) return
+        // Play build: adult words are refused before anything is saved or sent.
+        if (!FlavorSafeSearch.policy.isQueryAllowed(text)) {
+            _statusToast.value = SafeSearchPolicy.BLOCKED_QUERY_MESSAGE
+            return
+        }
         viewModelScope.launch {
             prefsRepo.updateWikimediaFilter(customQuery = text.trim())
             prefsRepo.ensureCategorySelected(WikimediaCategoryFilter.CUSTOM_QUERY)
