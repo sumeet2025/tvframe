@@ -6,7 +6,7 @@ I built TVFrame as a photo gallery and screensaver for **any Android TV or Googl
 
 Get the latest APK from the [Releases](https://github.com/sumeet2025/tvframe/releases/latest) page:
 
-- [Download the latest TVFrame APK](https://github.com/sumeet2025/tvframe/releases/latest/download/TVFrame.apk) (currently v1.4.0)
+- [Download the latest TVFrame APK](https://github.com/sumeet2025/tvframe/releases/latest/download/TVFrame.apk) (currently v1.4.1)
 
 This link always points to the newest release. What changed in each version is in the [CHANGELOG](CHANGELOG.md).
 

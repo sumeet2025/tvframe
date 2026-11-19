@@ -3,6 +3,17 @@
 All notable changes to TVFrame are listed here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and TVFrame uses [Semantic Versioning](https://semver.org/).
 
+## [1.4.1] - 2026-11-19
+
+### Changed
+- **Custom Search is back in the Google Play version, and it's family-safe there.** On Play it only searches Wikimedia's reviewed Featured, Quality and Valued images. It refuses adult words before searching ("That search isn't available. Try another word."), and it drops any photo whose categories or title point to nudity, sexual content, anatomy/medical, gore or violence. The GitHub version (this APK) keeps open, unfiltered search. ([#40](https://github.com/sumeet2025/tvframe/pull/40), fixes [#38](https://github.com/sumeet2025/tvframe/issues/38))
+
+### Fixed
+- **Sync now reads past the first page of results.** TVFrame asked Commons for too few categories, so Commons stopped sending the next-page marker and every sync looked at just one page. "Photos per sync" now fills up much more reliably, and searches keep going deeper over time. ([#40](https://github.com/sumeet2025/tvframe/pull/40), fixes [#39](https://github.com/sumeet2025/tvframe/issues/39))
+
+### Upgrade notes
+- It installs over 1.4.0 and earlier without uninstalling. Photos, favorites and settings are kept, and there's no database change.
+
 ## [1.4.0] - 2026-11-19
 
 This release gets TVFrame ready for Google Play on Android TV, and fixes the remote-control and privacy issues I found while checking it against Play's rules.
