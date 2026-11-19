@@ -118,7 +118,7 @@ class TVFrameApp : Application(), ImageLoaderFactory {
                 val request = chain.request().newBuilder()
                     .header(
                         "User-Agent",
-                        "TVFrame/1.0 (Android TV; https://primal.net/s; s@primal.net)"
+                        "TVFrame/${BuildConfig.VERSION_NAME} (Android TV; https://primal.net/s; s@primal.net)"
                     )
                     .build()
                 chain.proceed(request)

@@ -1,6 +1,7 @@
 package com.nostr.tvframe.data.remote
 
 import android.text.Html
+import com.nostr.tvframe.BuildConfig
 import com.nostr.tvframe.data.local.PhotoEntity
 import com.nostr.tvframe.domain.model.PhotoSourceType
 import kotlinx.serialization.SerialName
@@ -109,8 +110,13 @@ object WikimediaClient {
     }
 
     private val okHttpClient: OkHttpClient by lazy {
+        // Request logging only in debug builds; release builds don't write URLs to the system log.
         val logging = HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BASIC
+            level = if (BuildConfig.DEBUG) {
+                HttpLoggingInterceptor.Level.BASIC
+            } else {
+                HttpLoggingInterceptor.Level.NONE
+            }
         }
         OkHttpClient.Builder()
             .connectTimeout(15, TimeUnit.SECONDS)
@@ -119,7 +125,7 @@ object WikimediaClient {
                 val req = chain.request().newBuilder()
                     .header(
                         "User-Agent",
-                        "TVFrame/1.0 (Android TV; https://primal.net/s; s@primal.net)"
+                        "TVFrame/${BuildConfig.VERSION_NAME} (Android TV; https://primal.net/s; s@primal.net)"
                     )
                     .build()
                 chain.proceed(req)
