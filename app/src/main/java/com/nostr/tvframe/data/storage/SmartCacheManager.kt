@@ -5,7 +5,6 @@ import com.nostr.tvframe.data.local.PhotoDao
 import com.nostr.tvframe.data.local.UserPreferencesRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import java.io.File
 
@@ -27,10 +26,16 @@ class SmartCacheManager(
 
     /**
      * Resolves the active cache directory (USB drive if enabled & mounted, otherwise internal TV flash).
+     * Suspends while reading settings instead of blocking the calling thread.
      */
-    fun resolveActiveCacheDirectory(): File {
-        val prefs = runBlocking { preferencesRepository.userPreferencesFlow.first() }
-        if (prefs.useUsbForImageCache) {
+    suspend fun resolveActiveCacheDirectory(): File = withContext(Dispatchers.IO) {
+        val prefs = preferencesRepository.userPreferencesFlow.first()
+        resolveCacheDirectory(prefs.useUsbForImageCache)
+    }
+
+    /** Same as [resolveActiveCacheDirectory] when the setting is already known (no settings read). */
+    fun resolveCacheDirectory(useUsbForImageCache: Boolean): File {
+        if (useUsbForImageCache) {
             val usbCache = usbStorageDataSource.getUsbWritableCacheDirectory()
             if (usbCache != null) {
                 return usbCache
