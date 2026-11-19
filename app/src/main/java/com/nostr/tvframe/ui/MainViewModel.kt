@@ -489,7 +489,15 @@ class MainViewModel : ViewModel() {
         }
     }
 
+    /**
+     * Dismiss button on the banner. The banner shows either a status message or a USB
+     * plug/unplug message, so clear whichever one is showing (the status message first).
+     */
     fun dismissToast() {
-        _statusToast.value = null
+        if (_statusToast.value != null) {
+            _statusToast.value = null
+        } else {
+            usbSource.clearStatusBanner()
+        }
     }
 }
