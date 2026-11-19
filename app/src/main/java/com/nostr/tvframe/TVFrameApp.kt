@@ -1,6 +1,7 @@
 package com.nostr.tvframe
 
 import android.app.Application
+import android.os.Looper
 import coil.ImageLoader
 import coil.ImageLoaderFactory
 import coil.disk.DiskCache
@@ -16,12 +17,14 @@ import com.nostr.tvframe.data.storage.SmbNetworkDataSource
 import com.nostr.tvframe.data.storage.UsbStorageDataSource
 import com.nostr.tvframe.data.sync.SyncStatusTracker
 import com.nostr.tvframe.data.worker.PrefetchWorker
+import com.nostr.tvframe.domain.model.UserPreferences
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.OkHttpClient
 import java.io.File
 import java.util.concurrent.TimeUnit
@@ -91,6 +94,11 @@ class TVFrameApp : Application(), ImageLoaderFactory {
         // (registering it again at runtime caused every event to be handled twice).
         PrefetchWorker.schedulePeriodicPrefetch(this)
 
+        // Keep a settings snapshot for code that can't suspend (Coil's disk cache setup)
+        applicationScope.launch {
+            preferencesRepository.userPreferencesFlow.collect { latestPreferences = it }
+        }
+
         // Verify mounted USB path on startup and prune expired cache entries
         applicationScope.launch {
             usbStorageDataSource.verifyUsbMountOrFallback()
@@ -125,11 +133,11 @@ class TVFrameApp : Application(), ImageLoaderFactory {
                     .build()
             }
             .diskCache {
-                // Coil builds the disk cache lazily on first use, which happens on its IO
-                // dispatcher. Reading prefs / resolving the USB cache dir here (instead of with
-                // runBlocking when the ImageLoader is created) keeps that work off the main thread.
-                val activeCacheDir: File = smartCacheManager.resolveActiveCacheDirectory()
-                val maxQuotaBytes = cacheQuotaMbBlocking().toLong() * 1024L * 1024L
+                // Coil builds the disk cache lazily on first use. Settings come from the snapshot
+                // kept up to date in onCreate, so nothing blocks here waiting for DataStore.
+                val prefs = cacheSettingsForDiskCache()
+                val activeCacheDir: File = smartCacheManager.resolveCacheDirectory(prefs.useUsbForImageCache)
+                val maxQuotaBytes = prefs.cacheQuotaMb.toLong() * 1024L * 1024L
                 DiskCache.Builder()
                     .directory(File(activeCacheDir, "coil_image_cache"))
                     .maxSizeBytes(maxQuotaBytes)
@@ -141,8 +149,24 @@ class TVFrameApp : Application(), ImageLoaderFactory {
             .build()
     }
 
-    private fun cacheQuotaMbBlocking(): Int =
-        runBlocking(Dispatchers.IO) { preferencesRepository.userPreferencesFlow.first().cacheQuotaMb }
+    /** Latest settings, collected in the background from DataStore (null until the first read). */
+    @Volatile
+    private var latestPreferences: UserPreferences? = null
+
+    /**
+     * Settings for building Coil's disk cache. Uses the background snapshot. If Coil asks before
+     * the first read has finished, it waits briefly for it, but only on a background thread; on
+     * the main thread it never blocks and uses the defaults instead.
+     */
+    private fun cacheSettingsForDiskCache(): UserPreferences {
+        latestPreferences?.let { return it }
+        if (Looper.myLooper() == Looper.getMainLooper()) return UserPreferences()
+        return runCatching {
+            runBlocking(Dispatchers.IO) {
+                withTimeoutOrNull(2_000) { preferencesRepository.userPreferencesFlow.first() }
+            }
+        }.getOrNull() ?: UserPreferences()
+    }
 
     companion object {
         lateinit var instance: TVFrameApp
