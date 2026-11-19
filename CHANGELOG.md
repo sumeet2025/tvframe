@@ -3,6 +3,33 @@
 All notable changes to TVFrame are listed here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and TVFrame uses [Semantic Versioning](https://semver.org/).
 
+## [1.4.0] - 2026-11-19
+
+This release gets TVFrame ready for Google Play on Android TV, and fixes the remote-control and privacy issues I found while checking it against Play's rules.
+
+### Added
+- **Two builds: GitHub and Google Play.** Same package name and signing key, so either installs over the other and keeps your data. The GitHub APK (this release) keeps everything. The Play build is TV-only and leaves out All Files Access, Custom Search and the Lightning zap, which Play doesn't allow. ([#28](https://github.com/sumeet2025/tvframe/pull/28), fixes [#20](https://github.com/sumeet2025/tvframe/issues/20))
+- **Photo license next to the photographer**, for example "📷 Name · CC BY-SA 4.0", in the slideshow, the screensaver and on Gallery cards. ([#34](https://github.com/sumeet2025/tvframe/pull/34), fixes [#26](https://github.com/sumeet2025/tvframe/issues/26))
+- **[Privacy policy](PRIVACY.md)** and an **[MIT license](LICENSE)**. The About tab has a short Privacy summary. ([#35](https://github.com/sumeet2025/tvframe/pull/35), fixes [#27](https://github.com/sumeet2025/tvframe/issues/27))
+- README section on getting the full GitHub version and installing it with a USB stick. ([#36](https://github.com/sumeet2025/tvframe/pull/36))
+
+### Changed
+- TVFrame is now marked as TV-only (`android.software.leanback` required).
+- Removed two storage permissions that were declared but never used (`READ_MEDIA_IMAGES`, `READ_EXTERNAL_STORAGE`). USB folders still work through the folder picker, and the GitHub build still has optional All Files Access. ([#28](https://github.com/sumeet2025/tvframe/pull/28))
+- App backup is off, so the saved SMB login and photo database never leave the TV. Release builds no longer log network requests. ([#33](https://github.com/sumeet2025/tvframe/pull/33), fixes [#25](https://github.com/sumeet2025/tvframe/issues/25))
+- Settings are no longer read with a blocking call on the main thread, which could make the app stutter. ([#32](https://github.com/sumeet2025/tvframe/pull/32), fixes [#24](https://github.com/sumeet2025/tvframe/issues/24))
+- About now shows the correct minimum Android version (Android TV 11+).
+
+### Fixed
+- **The USB banner's Dismiss button** now actually dismisses it. ([#29](https://github.com/sumeet2025/tvframe/pull/29), fixes [#21](https://github.com/sumeet2025/tvframe/issues/21))
+- **The SMB password** is masked instead of shown in clear text. ([#30](https://github.com/sumeet2025/tvframe/pull/30), fixes [#22](https://github.com/sumeet2025/tvframe/issues/22))
+- **♥ and 🗑 on photo cards** now show a clear outline when the remote is on them, and buttons no longer have a hidden second focus stop. ([#31](https://github.com/sumeet2025/tvframe/pull/31), fixes [#23](https://github.com/sumeet2025/tvframe/issues/23))
+
+### Upgrade notes
+- It's signed with the same key, so it installs over 1.3.1, 1.3.0 or 1.2.0 without uninstalling. Photos, favorites and settings are kept.
+- The database moves from v2 to v3 (a new license column). The upgrade is automatic and keeps everything. Photos downloaded before 1.4.0 show the photographer without a license name; new ones show both.
+- Because backup is now off, TVFrame's data won't move to a new TV through Android's backup or transfer.
+
 ## [1.3.1] - 2026-11-12
 
 A small follow-up to 1.3.0 that fixes what I ran into using it on my own TV, plus one screensaver option I wanted.
